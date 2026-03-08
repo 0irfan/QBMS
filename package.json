@@ -20,6 +20,10 @@
     "check": "node scripts/check-completeness.mjs",
     "clean": "turbo run clean && rm -rf node_modules .turbo"
   },
+  "dependencies": {
+    "drizzle-orm": "^0.29.5",
+    "pg": "^8.11.3"
+  },
   "devDependencies": {
     "prettier": "^3.2.5",
     "turbo": "^2.3.0"
