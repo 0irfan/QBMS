@@ -1,0 +1,215 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_API: ${{ github.repository }}/api
+  IMAGE_NAME_WEB: ${{ github.repository }}/web
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    outputs:
+      api-image: ${{ steps.meta-api.outputs.tags }}
+      web-image: ${{ steps.meta-web.outputs.tags }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract API metadata
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+      
+      - name: Extract Web metadata
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_WEB }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://qbms.pro/api
+
+  deploy:
+    name: Deploy to Server
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: https://qbms.pro
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Create deployment directory
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p /opt/qbms"
+      
+      - name: Copy docker-compose to server
+        run: |
+          scp docker-compose.prod.yml ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/opt/qbms/docker-compose.yml
+          scp docker/nginx.conf ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/opt/qbms/nginx.conf
+      
+      - name: Create .env file on server
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cat > /opt/qbms/.env << 'EOF'
+          # Database
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          REDIS_URL=${{ secrets.REDIS_URL }}
+          
+          # Auth
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          REFRESH_SECRET=${{ secrets.REFRESH_SECRET }}
+          
+          # CORS
+          CORS_ORIGIN=https://qbms.pro
+          
+          # Azure Blob Storage
+          AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_BLOB_CONNECTION_STRING=${{ secrets.AZURE_BLOB_CONNECTION_STRING }}
+          AZURE_CONTAINER_NAME=${{ secrets.AZURE_CONTAINER_NAME }}
+          
+          # OpenAI
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          
+          # SMTP
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          FROM_EMAIL=${{ secrets.FROM_EMAIL }}
+          
+          # Application
+          APP_URL=https://qbms.pro
+          NODE_ENV=production
+          EOF"
+      
+      - name: Login to GitHub Container Registry on server
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} \
+            "echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin"
+      
+      - name: Pull and deploy containers
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cd /opt/qbms && \
+            docker-compose pull && \
+            docker-compose up -d --remove-orphans && \
+            docker-compose ps"
+      
+      - name: Run database migrations
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} \
+            "docker-compose -f /opt/qbms/docker-compose.yml exec -T api npm run migrate || true"
+      
+      - name: Health check
+        run: |
+          sleep 10
+          curl -f https://qbms.pro/health || exit 1
+      
+      - name: Cleanup old images
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} \
+            "docker image prune -af --filter 'until=24h'"
+      
+      - name: Deployment notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment to qbms.pro successful!"
+          else
+            echo "❌ Deployment to qbms.pro failed!"
+          fi
+
+  rollback:
+    name: Rollback Deployment
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Rollback to previous version
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cd /opt/qbms && \
+            docker-compose down && \
+            docker-compose up -d --force-recreate"
+      
+      - name: Notify rollback
+        run: echo "⚠️ Deployment failed, rolled back to previous version"

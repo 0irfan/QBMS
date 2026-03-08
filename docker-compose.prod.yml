@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: qbms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qbms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qbms}
+      POSTGRES_DB: ${POSTGRES_DB:-qbms}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - qbms-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qbms} -d ${POSTGRES_DB:-qbms}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: qbms-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - qbms-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    image: ghcr.io/0irfan/qbms/api:latest
+    container_name: qbms-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      REFRESH_SECRET: ${REFRESH_SECRET}
+      CORS_ORIGIN: https://qbms.pro
+      UPLOAD_DIR: /app/uploads
+      AZURE_ACCOUNT_NAME: ${AZURE_ACCOUNT_NAME}
+      AZURE_ACCOUNT_KEY: ${AZURE_ACCOUNT_KEY}
+      AZURE_BLOB_CONNECTION_STRING: ${AZURE_BLOB_CONNECTION_STRING}
+      AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      FROM_EMAIL: ${FROM_EMAIL}
+      APP_URL: https://qbms.pro
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - qbms-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  web:
+    image: ghcr.io/0irfan/qbms/web:latest
+    container_name: qbms-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://qbms.pro/api
+    networks:
+      - qbms-network
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nginx:
+    image: nginx:alpine
+    container_name: qbms-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+    networks:
+      - qbms-network
+    depends_on:
+      - web
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  qbms-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads:
+    driver: local
+  nginx_cache:
+    driver: local
