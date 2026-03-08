@@ -115,7 +115,7 @@ jobs:
       
       - name: Create deployment directory
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p /opt/qbms"
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "sudo mkdir -p /opt/qbms && sudo chown -R ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /opt/qbms"
       
       - name: Copy docker-compose to server
         run: |
@@ -124,7 +124,7 @@ jobs:
       
       - name: Create .env file on server
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cat > /opt/qbms/.env << 'EOF'
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "sudo tee /opt/qbms/.env > /dev/null << 'EOF'
           # Database
           DATABASE_URL=${{ secrets.DATABASE_URL }}
           REDIS_URL=${{ secrets.REDIS_URL }}
@@ -156,6 +156,10 @@ jobs:
           APP_URL=https://qbms.pro
           NODE_ENV=production
           EOF"
+      
+      - name: Set .env file ownership
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "sudo chown ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /opt/qbms/.env"
       
       - name: Login to GitHub Container Registry on server
         run: |
