@@ -1,0 +1,32 @@
+{
+  "name": "qbms",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "docker:up": "docker-compose up -d --build",
+    "docker:down": "docker-compose down -v",
+    "docker:logs": "docker-compose logs -f",
+    "db:generate": "turbo run db:generate --filter=@qbms/database",
+    "db:migrate": "turbo run db:migrate --filter=@qbms/database",
+    "db:seed": "turbo run db:seed --filter=@qbms/database",
+    "db:studio": "turbo run db:studio --filter=@qbms/database",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "test": "turbo run test",
+    "test:api": "node scripts/test-api.mjs",
+    "test:frontend": "node scripts/test-frontend.mjs",
+    "test:e2e": "turbo run test:e2e",
+    "check": "node scripts/check-completeness.mjs",
+    "clean": "turbo run clean && rm -rf node_modules .turbo"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "turbo": "^2.3.0"
+  },
+  "packageManager": "npm@10.2.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
