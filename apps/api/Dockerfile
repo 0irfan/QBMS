@@ -6,14 +6,14 @@ COPY package.json package-lock.json* ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/database/package.json ./packages/database/
 COPY packages/shared/package.json ./packages/shared/
-RUN npm ci 2>/dev/null || npm install
+RUN npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm install
+RUN npm install --legacy-peer-deps
 # Ensure workspace node_modules exist so runner can merge (drizzle-orm etc.)
-RUN (cd apps/api && npm install --no-save) || true
+RUN (cd apps/api && npm install --no-save --legacy-peer-deps) || true
 RUN npm run build --workspace=@qbms/database
 RUN npm run build --workspace=@qbms/shared
 RUN npm run build --workspace=@qbms/api
