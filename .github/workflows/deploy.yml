@@ -169,14 +169,14 @@ jobs:
       - name: Pull and deploy containers
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cd /opt/qbms && \
-            docker-compose pull && \
-            docker-compose up -d --remove-orphans && \
-            docker-compose ps"
+            docker compose pull && \
+            docker compose up -d --remove-orphans && \
+            docker compose ps"
       
       - name: Run database migrations
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} \
-            "docker-compose -f /opt/qbms/docker-compose.yml exec -T api npm run migrate || true"
+            "docker compose -f /opt/qbms/docker-compose.yml exec -T api npm run migrate || true"
       
       - name: Health check
         run: |
@@ -212,8 +212,8 @@ jobs:
       - name: Rollback to previous version
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cd /opt/qbms && \
-            docker-compose down && \
-            docker-compose up -d --force-recreate"
+            docker compose down && \
+            docker compose up -d --force-recreate"
       
       - name: Notify rollback
         run: echo "⚠️ Deployment failed, rolled back to previous version"
