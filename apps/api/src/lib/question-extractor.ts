@@ -12,6 +12,11 @@ interface ExtractedQuestion {
   }>;
 }
 
+interface ExtractionResult {
+  subjectName: string;
+  questions: ExtractedQuestion[];
+}
+
 /**
  * Extract text from PDF or image file
  */
@@ -31,7 +36,7 @@ async function extractText(file: Express.Multer.File): Promise<string> {
 /**
  * Use OpenAI to extract structured questions from text
  */
-async function parseQuestionsWithAI(content: string, isImage: boolean): Promise<ExtractedQuestion[]> {
+async function parseQuestionsWithAI(content: string, isImage: boolean): Promise<ExtractionResult> {
   try {
     const client = getOpenAIClient();
     if (!client) {
@@ -50,14 +55,16 @@ async function parseQuestionsWithAI(content: string, isImage: boolean): Promise<
             content: [
               {
                 type: 'text',
-                text: `Extract all questions from this exam paper image. For each question, identify:
-- questionText: the complete question text
-- type: "mcq" (multiple choice), "short" (short answer), or "essay" (long answer)
-- difficulty: "easy", "medium", or "hard" (estimate based on complexity)
-- marks: number of marks (if visible, otherwise estimate: mcq=1-2, short=2-5, essay=5-10)
-- options: if MCQ, extract all options with optionText and mark one as isCorrect (guess if answer not shown)
+                text: `Extract the subject name and all questions from this exam paper image. Return a JSON object with:
+- subjectName: the subject/course name from the paper (e.g., "Computer Networks", "Data Structures")
+- questions: array of questions, each with:
+  - questionText: the complete question text
+  - type: "mcq" (multiple choice), "short" (short answer), or "essay" (long answer)
+  - difficulty: "easy", "medium", or "hard" (estimate based on complexity)
+  - marks: number of marks (if visible, otherwise estimate: mcq=1-2, short=2-5, essay=5-10)
+  - options: if MCQ, extract all options with optionText and mark one as isCorrect (guess if answer not shown)
 
-Return ONLY a valid JSON array of questions, no additional text or markdown.`,
+Return ONLY a valid JSON object, no additional text or markdown.`,
               },
               {
                 type: 'image_url',
@@ -77,21 +84,23 @@ Return ONLY a valid JSON array of questions, no additional text or markdown.`,
         messages: [
           {
             role: 'system',
-            content: `You are an expert at extracting questions from exam papers. Extract questions and return them as a JSON array.`,
+            content: `You are an expert at extracting questions from exam papers. Extract questions and return them as a JSON object.`,
           },
           {
             role: 'user',
-            content: `Extract all questions from this exam paper text. For each question, identify:
-- questionText: the complete question text
-- type: "mcq" (multiple choice), "short" (short answer), or "essay" (long answer)
-- difficulty: "easy", "medium", or "hard" (estimate based on complexity)
-- marks: number of marks (if visible, otherwise estimate: mcq=1-2, short=2-5, essay=5-10)
-- options: if MCQ, extract all options with optionText and mark one as isCorrect (guess if answer not shown)
+            content: `Extract the subject name and all questions from this exam paper text. Return a JSON object with:
+- subjectName: the subject/course name from the paper (e.g., "Computer Networks", "Data Structures")
+- questions: array of questions, each with:
+  - questionText: the complete question text
+  - type: "mcq" (multiple choice), "short" (short answer), or "essay" (long answer)
+  - difficulty: "easy", "medium", or "hard" (estimate based on complexity)
+  - marks: number of marks (if visible, otherwise estimate: mcq=1-2, short=2-5, essay=5-10)
+  - options: if MCQ, extract all options with optionText and mark one as isCorrect (guess if answer not shown)
 
 Text to parse:
 ${content}
 
-Return ONLY a valid JSON array of questions, no additional text or markdown.`,
+Return ONLY a valid JSON object, no additional text or markdown.`,
           },
         ],
         max_tokens: 4000,
@@ -111,13 +120,22 @@ Return ONLY a valid JSON array of questions, no additional text or markdown.`,
       jsonText = jsonText.replace(/```\n?/g, '');
     }
 
-    const questions = JSON.parse(jsonText);
+    const parsed = JSON.parse(jsonText);
     
-    if (!Array.isArray(questions)) {
-      throw new Error('AI response is not an array');
+    if (!parsed.subjectName || !Array.isArray(parsed.questions)) {
+      throw new Error('AI response missing subjectName or questions array');
     }
 
-    return questions;
+    return {
+      subjectName: parsed.subjectName,
+      questions: parsed.questions.map((q: any) => ({
+        questionText: q.questionText || '',
+        type: ['mcq', 'short', 'essay'].includes(q.type) ? q.type : 'short',
+        difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : 'medium',
+        marks: typeof q.marks === 'number' && q.marks > 0 ? q.marks : 2,
+        ...(q.type === 'mcq' && q.options ? { options: q.options } : {}),
+      })),
+    };
   } catch (error) {
     console.error('AI parsing error:', error);
     throw new Error('Failed to parse questions with AI: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -127,23 +145,16 @@ Return ONLY a valid JSON array of questions, no additional text or markdown.`,
 /**
  * Main function to extract questions from uploaded file
  */
-export async function extractQuestionsFromFile(file: Express.Multer.File): Promise<ExtractedQuestion[]> {
+export async function extractQuestionsFromFile(file: Express.Multer.File): Promise<ExtractionResult> {
   try {
     // Extract text/image from file
     const content = await extractText(file);
     const isImage = file.mimetype.startsWith('image/');
 
     // Use AI to parse questions
-    const questions = await parseQuestionsWithAI(content, isImage);
+    const result = await parseQuestionsWithAI(content, isImage);
 
-    // Validate and clean questions
-    return questions.map(q => ({
-      questionText: q.questionText || '',
-      type: ['mcq', 'short', 'essay'].includes(q.type) ? q.type : 'short',
-      difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : 'medium',
-      marks: typeof q.marks === 'number' && q.marks > 0 ? q.marks : 2,
-      ...(q.type === 'mcq' && q.options ? { options: q.options } : {}),
-    }));
+    return result;
   } catch (error) {
     console.error('Question extraction error:', error);
     throw error;

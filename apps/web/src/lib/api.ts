@@ -307,11 +307,9 @@ export type ExtractedQuestion = {
   options?: { optionText: string; isCorrect: boolean }[];
 };
 export const questionExtractApi = {
-  upload: async (file: File, subjectId: string, topicId: string) => {
+  upload: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('subjectId', subjectId);
-    formData.append('topicId', topicId);
     
     const token = getToken();
     const headers: HeadersInit = {
@@ -330,7 +328,7 @@ export const questionExtractApi = {
       throw new Error((err as { error?: string }).error || 'Upload failed');
     }
     
-    return res.json() as Promise<{ message: string; questions: ExtractedQuestion[]; count: number }>;
+    return res.json() as Promise<{ message: string; subjectName: string; questions: ExtractedQuestion[]; count: number }>;
   },
   bulkImport: (questions: ExtractedQuestion[], topicId: string) =>
     api<{ message: string; results: { success: boolean; questionText: string; error?: string }[] }>(

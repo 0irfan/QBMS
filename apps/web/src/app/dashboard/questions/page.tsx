@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth';
-import { questionsApi, topicsApi, aiApi, questionExtractApi, type GeneratedQuestion, type ExtractedQuestion } from '@/lib/api';
+import { questionsApi, topicsApi, subjectsApi, aiApi, questionExtractApi, type GeneratedQuestion, type ExtractedQuestion } from '@/lib/api';
 import { Plus, Loader2, ChevronDown, ChevronUp, HelpCircle, Sparkles, Upload, FileText, Check, X, Edit2 } from 'lucide-react';
 
 type Question = {
@@ -20,6 +20,7 @@ export default function QuestionsPage() {
   const canEdit = user?.role === 'super_admin' || user?.role === 'instructor';
   const [list, setList] = useState<Question[]>([]);
   const [topics, setTopics] = useState<{ topicId: string; topicName: string; subjectId: string }[]>([]);
+  const [subjects, setSubjects] = useState<{ subjectId: string; subjectName: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -44,18 +45,19 @@ export default function QuestionsPage() {
   const [addingId, setAddingId] = useState<number | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadSubjectId, setUploadSubjectId] = useState('');
   const [uploading, setUploading] = useState(false);
   const [extracted, setExtracted] = useState<ExtractedQuestion[]>([]);
+  const [extractedSubjectName, setExtractedSubjectName] = useState('');
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editQuestion, setEditQuestion] = useState<ExtractedQuestion | null>(null);
   const [importing, setImporting] = useState(false);
 
   useEffect(() => {
-    Promise.all([questionsApi.list({ limit: 50 }), topicsApi.list()])
-      .then(([q, t]) => {
+    Promise.all([questionsApi.list({ limit: 50 }), topicsApi.list(), subjectsApi.list()])
+      .then(([q, t, s]) => {
         setList(q.data);
         setTopics(t);
+        setSubjects(s);
         if (t.length && !topicId) setTopicId(t[0].topicId);
         if (t.length && !aiTopicId) {
           setAiTopicId(t[0].topicId);
@@ -151,16 +153,18 @@ export default function QuestionsPage() {
   }
 
   async function handleUpload() {
-    if (!uploadFile || !uploadSubjectId) {
-      setError('Please select a file and subject');
+    if (!uploadFile) {
+      setError('Please select a file');
       return;
     }
     setUploading(true);
     setError('');
     setExtracted([]);
+    setExtractedSubjectName('');
     try {
-      const res = await questionExtractApi.upload(uploadFile, uploadSubjectId, '');
+      const res = await questionExtractApi.upload(uploadFile);
       setExtracted(res.questions);
+      setExtractedSubjectName(res.subjectName);
       setUploadFile(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed');
@@ -192,16 +196,27 @@ export default function QuestionsPage() {
   }
 
   async function handleBulkImport() {
-    if (extracted.length === 0 || !uploadSubjectId) return;
+    if (extracted.length === 0 || !extractedSubjectName) return;
     setImporting(true);
     setError('');
     try {
-      // Import all questions to the first topic of the selected subject
-      const subjectTopics = topics.filter(t => t.subjectId === uploadSubjectId);
+      // Find or match subject by name
+      const matchedSubject = subjects.find(s => 
+        s.subjectName.toLowerCase().trim() === extractedSubjectName.toLowerCase().trim()
+      );
+      
+      if (!matchedSubject) {
+        setError(`Subject "${extractedSubjectName}" not found. Please create this subject first.`);
+        setImporting(false);
+        return;
+      }
+      
+      // Import all questions to the first topic of the matched subject
+      const subjectTopics = topics.filter(t => t.subjectId === matchedSubject.subjectId);
       const targetTopicId = subjectTopics.length > 0 ? subjectTopics[0].topicId : '';
       
       if (!targetTopicId) {
-        setError('No topics found for this subject. Please create a topic first.');
+        setError(`No topics found for subject "${extractedSubjectName}". Please create a topic first.`);
         setImporting(false);
         return;
       }
@@ -209,10 +224,11 @@ export default function QuestionsPage() {
       const res = await questionExtractApi.bulkImport(extracted, targetTopicId);
       const successCount = res.results.filter(r => r.success).length;
       setExtracted([]);
+      setExtractedSubjectName('');
       setShowUpload(false);
       const listRes = await questionsApi.list({ limit: 50 });
       setList(listRes.data);
-      alert(`Successfully imported ${successCount} of ${res.results.length} questions`);
+      alert(`Successfully imported ${successCount} of ${res.results.length} questions to subject "${extractedSubjectName}"`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Import failed');
     } finally {
@@ -355,20 +371,10 @@ export default function QuestionsPage() {
             <Upload className="w-5 h-5 text-teal-600 dark:text-teal-400" />
             Upload Question Paper (AI Extraction)
           </h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Subject</label>
-              <select
-                value={uploadSubjectId}
-                onChange={(e) => setUploadSubjectId(e.target.value)}
-                className="input-field"
-              >
-                <option value="">Select subject</option>
-                {topics.map((t) => (
-                  <option key={t.subjectId} value={t.subjectId}>{t.subjectName}</option>
-                ))}
-              </select>
-            </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Upload a PDF or image of a question paper. AI will automatically extract the subject name and questions.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">File (PDF/Image)</label>
               <input
@@ -382,7 +388,7 @@ export default function QuestionsPage() {
               <button
                 type="button"
                 onClick={handleUpload}
-                disabled={uploading || !uploadFile || !uploadSubjectId}
+                disabled={uploading || !uploadFile}
                 className="btn-primary inline-flex items-center gap-2 w-full sm:w-auto"
               >
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
@@ -390,6 +396,14 @@ export default function QuestionsPage() {
               </button>
             </div>
           </div>
+          
+          {extractedSubjectName && (
+            <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800">
+              <p className="text-sm font-medium text-teal-900 dark:text-teal-100">
+                Detected Subject: <span className="font-semibold">{extractedSubjectName}</span>
+              </p>
+            </div>
+          )}
           
           {extracted.length > 0 && (
             <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">

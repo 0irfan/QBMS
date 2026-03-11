@@ -34,18 +34,17 @@ questionExtractRouter.post('/upload', upload.single('file'), async (req: AuthReq
     }
 
     const { subjectId, topicId } = req.body;
-    if (!subjectId) {
-      return res.status(400).json({ error: 'subjectId is required' });
-    }
+    // subjectId is optional now - AI will extract subject name
 
     // Extract questions using AI
-    const extractedQuestions = await extractQuestionsFromFile(req.file);
+    const result = await extractQuestionsFromFile(req.file);
 
-    // Return extracted questions for review
+    // Return extracted questions and subject name for review
     res.json({
       message: 'Questions extracted successfully',
-      questions: extractedQuestions,
-      count: extractedQuestions.length,
+      subjectName: result.subjectName,
+      questions: result.questions,
+      count: result.questions.length,
     });
   } catch (error) {
     console.error('Question extraction error:', error);
