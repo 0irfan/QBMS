@@ -10,8 +10,10 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get('invite') || undefined;
+  const enrollmentCode = searchParams.get('code') || undefined;
+  const prefilledEmail = searchParams.get('email') || '';
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<'student' | 'instructor'>('student');
@@ -73,7 +75,13 @@ function RegisterForm() {
         ...(inviteToken && { inviteToken }),
       };
       await authApi.registerVerifyOtp(payload);
-      router.push('/login?registered=1');
+      
+      // If there's an enrollment code, redirect to join class page
+      if (enrollmentCode) {
+        router.push(`/login?registered=1&redirect=/dashboard/classes/join?code=${encodeURIComponent(enrollmentCode)}`);
+      } else {
+        router.push('/login?registered=1');
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid or expired OTP');
@@ -105,7 +113,9 @@ function RegisterForm() {
                 ? `We sent a 6-digit code to ${email}. Enter it below to complete registration.`
                 : inviteValid
                   ? 'You were invited as an instructor. Complete your registration below.'
-                  : 'Sign up to get started with QBMS.'}
+                  : enrollmentCode
+                    ? 'Create your account to join the class.'
+                    : 'Create your account to get started with QBMS.'}
             </p>
             {inviteValidating && (
               <p className="mt-2 text-sm text-teal-600 dark:text-teal-400">Validating invite…</p>

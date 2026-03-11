@@ -36,7 +36,9 @@ function hashToken(token: string): string {
 }
 
 /** Step 1: Submit registration details → send OTP to email (no account created yet) 
- * Registration now requires an invite token - no public registration allowed
+ * Registration can be done with:
+ * 1. Instructor invite token (becomes instructor)
+ * 2. Class enrollment code (becomes student)
  */
 authRouter.post('/register', async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
@@ -44,23 +46,24 @@ authRouter.post('/register', async (req, res) => {
   let { name, email, password, role, inviteToken } = parsed.data;
   email = email.toLowerCase().trim();
 
-  // Require invite token for all registrations
-  if (!inviteToken) {
-    return res.status(403).json({ error: 'Registration requires an invitation. Please contact an administrator.' });
+  // Check for instructor invite token
+  if (inviteToken) {
+    const hash = hashToken(inviteToken);
+    const [invite] = await db
+      .select()
+      .from(instructorInvites)
+      .where(eq(instructorInvites.tokenHash, hash))
+      .limit(1);
+    if (!invite || invite.usedAt || invite.expiresAt < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired invite token' });
+    }
+    email = invite.email;
+    role = 'instructor';
+    // Invite is marked used only after OTP verify (in register/verify-otp)
+  } else {
+    // No invite token - allow student registration (they'll join class after registration)
+    role = 'student';
   }
-
-  const hash = hashToken(inviteToken);
-  const [invite] = await db
-    .select()
-    .from(instructorInvites)
-    .where(eq(instructorInvites.tokenHash, hash))
-    .limit(1);
-  if (!invite || invite.usedAt || invite.expiresAt < new Date()) {
-    return res.status(400).json({ error: 'Invalid or expired invite token' });
-  }
-  email = invite.email;
-  role = 'instructor';
-  // Invite is marked used only after OTP verify (in register/verify-otp)
 
   const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (existing.length) return res.status(409).json({ error: 'Email already registered' });

@@ -84,13 +84,28 @@ invitesRouter.post(
       return res.status(403).json({ error: 'Not your class' });
     }
 
-    const joinUrl = `${APP_URL}/dashboard/classes/join?code=${encodeURIComponent(cls.enrollmentCode)}`;
-    await sendEmail(
-      email,
-      `Join class: ${cls.className}`,
-      `You have been invited to join the class "${cls.className}". Use this link to join: ${joinUrl}\n\nOr enter this code manually: ${cls.enrollmentCode}`,
-      `You have been invited to join the class "<strong>${cls.className}</strong>". <a href="${joinUrl}">Join class</a>. Or enter this code manually: <code>${cls.enrollmentCode}</code>`
-    ).catch(() => {});
+    // Check if user already exists
+    const [existingUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    
+    if (existingUser) {
+      // User exists, send them a join link
+      const joinUrl = `${APP_URL}/dashboard/classes/join?code=${encodeURIComponent(cls.enrollmentCode)}`;
+      await sendEmail(
+        email,
+        `Join class: ${cls.className}`,
+        `You have been invited to join the class "${cls.className}". Use this link to join: ${joinUrl}\n\nOr enter this code manually: ${cls.enrollmentCode}`,
+        `You have been invited to join the class "<strong>${cls.className}</strong>". <a href="${joinUrl}">Join class</a>. Or enter this code manually: <code>${cls.enrollmentCode}</code>`
+      ).catch(() => {});
+    } else {
+      // User doesn't exist, send them a registration link with the enrollment code
+      const registerUrl = `${APP_URL}/register?code=${encodeURIComponent(cls.enrollmentCode)}&email=${encodeURIComponent(email)}`;
+      await sendEmail(
+        email,
+        `Join class: ${cls.className}`,
+        `You have been invited to join the class "${cls.className}". Create your account to join: ${registerUrl}\n\nEnrollment code: ${cls.enrollmentCode}`,
+        `You have been invited to join the class "<strong>${cls.className}</strong>". <a href="${registerUrl}">Create your account</a> to join. Enrollment code: <code>${cls.enrollmentCode}</code>`
+      ).catch(() => {});
+    }
 
     res.status(201).json({ message: 'Invitation sent to ' + email });
   }
