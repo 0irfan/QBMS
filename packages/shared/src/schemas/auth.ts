@@ -11,6 +11,7 @@ export const registerSchema = z.object({
     .regex(/[0-9]/, 'Password must contain a number'),
   role: z.enum(['instructor', 'student']).optional().default('student'),
   inviteToken: z.string().min(1).optional(),
+  enrollmentNumber: z.string().min(1).optional(),
 });
 
 export const loginSchema = z.object({

@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../lib/db.js';
-import { users, refreshTokens, instructorInvites } from '@qbms/database';
+import { users, refreshTokens, instructorInvites, classes, classEnrollments } from '@qbms/database';
 import { eq, and, gt } from 'drizzle-orm';
 import {
   registerSchema,
@@ -43,7 +43,7 @@ function hashToken(token: string): string {
 authRouter.post('/register', async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  let { name, email, password, role, inviteToken } = parsed.data;
+  let { name, email, password, role, inviteToken, enrollmentNumber } = parsed.data;
   email = email.toLowerCase().trim();
 
   // Check for instructor invite token
@@ -63,6 +63,23 @@ authRouter.post('/register', async (req, res) => {
   } else {
     // No invite token - allow student registration (they'll join class after registration)
     role = 'student';
+    // If enrollment number provided, auto-enroll student to class
+    if (enrollmentNumber) {
+      const [cls] = await db
+        .select()
+        .from(classes)
+        .where(eq(classes.enrollmentCode, enrollmentNumber))
+        .limit(1);
+      if (cls) {
+        // Auto-enroll student to class
+        await db.insert(classEnrollments).values({
+          enrollmentId: uuidv4(),
+          classId: cls.classId,
+          studentId: 'pending', // Will be set after user is created
+          enrolledAt: new Date(),
+        });
+      }
+    }
   }
 
   const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -110,9 +127,10 @@ authRouter.post('/register/verify-otp', async (req, res) => {
     password: body.password,
     role: body.role,
     inviteToken: body.inviteToken,
+    enrollmentNumber: body.enrollmentNumber,
   });
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  let { name, password, role, inviteToken } = parsed.data;
+  let { name, password, role, inviteToken, enrollmentNumber } = parsed.data;
 
   if (inviteToken) {
     const hash = hashToken(inviteToken);
@@ -132,9 +150,27 @@ authRouter.post('/register/verify-otp', async (req, res) => {
   if (existing.length) return res.status(409).json({ error: 'Email already registered' });
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  await db
+  const [newUser] = await db
     .insert(users)
-    .values({ name, email, passwordHash, role: role as 'instructor' | 'student', status: 'active' });
+    .values({ name, email, passwordHash, role: role as 'instructor' | 'student', status: 'active' })
+    .returning({ userId: users.userId });
+
+  // Auto-enroll student if enrollment number provided
+  if (enrollmentNumber && role === 'student') {
+    const [cls] = await db
+      .select()
+      .from(classes)
+      .where(eq(classes.enrollmentCode, enrollmentNumber))
+      .limit(1);
+    if (cls) {
+      await db.insert(classEnrollments).values({
+        enrollmentId: uuidv4(),
+        classId: cls.classId,
+        studentId: newUser.userId,
+        enrolledAt: new Date(),
+      });
+    }
+  }
 
   res.json({ message: 'Account created. Please log in.' });
 });

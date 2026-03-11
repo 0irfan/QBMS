@@ -14,6 +14,7 @@ function RegisterForm() {
   const prefilledEmail = searchParams.get('email') || '';
   const [name, setName] = useState('');
   const [email, setEmail] = useState(prefilledEmail);
+  const [enrollmentNumber, setEnrollmentNumber] = useState(enrollmentCode || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<'student' | 'instructor'>('student');
@@ -43,13 +44,14 @@ function RegisterForm() {
     setError('');
     setLoading(true);
     try {
-      const payload: { name: string; email: string; password: string; role: string; inviteToken?: string } = {
+      const payload: { name: string; email: string; password: string; role: string; inviteToken?: string; enrollmentNumber?: string } = {
         name,
         email,
         password,
         role,
       };
       if (inviteToken) payload.inviteToken = inviteToken;
+      if (enrollmentNumber) payload.enrollmentNumber = enrollmentNumber;
       await authApi.register(payload);
       setStep('otp');
       setOtp('');
@@ -73,12 +75,13 @@ function RegisterForm() {
         password,
         role,
         ...(inviteToken && { inviteToken }),
+        ...(enrollmentNumber && { enrollmentNumber }),
       };
       await authApi.registerVerifyOtp(payload);
       
-      // If there's an enrollment code, redirect to join class page
-      if (enrollmentCode) {
-        router.push(`/login?registered=1&redirect=/dashboard/classes/join?code=${encodeURIComponent(enrollmentCode)}`);
+      // If there's an enrollment number, redirect to join class page
+      if (enrollmentNumber) {
+        router.push(`/login?registered=1&redirect=/dashboard/classes/join?code=${encodeURIComponent(enrollmentNumber)}`);
       } else {
         router.push('/login?registered=1');
       }
@@ -114,7 +117,7 @@ function RegisterForm() {
                 : inviteValid
                   ? 'You were invited as an instructor. Complete your registration below.'
                   : enrollmentCode
-                    ? 'Create your account to join the class.'
+                    ? 'Create your account to join the class. Enter your enrollment number.'
                     : 'Create your account to get started with QBMS.'}
             </p>
             {inviteValidating && (
@@ -188,6 +191,23 @@ function RegisterForm() {
                   placeholder="you@example.com"
                 />
               </div>
+              {role === 'student' && !inviteToken && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Enrollment Number
+                  </label>
+                  <input
+                    type="text"
+                    value={enrollmentNumber}
+                    onChange={(e) => setEnrollmentNumber(e.target.value)}
+                    className="input-field"
+                    placeholder="Enter your enrollment number"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Enter your enrollment number to join a class after registration.
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Password
