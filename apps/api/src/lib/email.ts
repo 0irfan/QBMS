@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { createOtpEmail, createInvitationEmail, createPasswordResetEmail, createClassEnrollmentEmail } from './email-templates.js';
 
 const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = Number(process.env.SMTP_PORT) || 587;
@@ -44,4 +45,36 @@ export async function sendEmail(to: string, subject: string, text: string, html?
     text,
     html: html || text,
   });
+}
+
+/**
+ * Send OTP email with beautiful template
+ */
+export async function sendOtpEmail(to: string, otp: string): Promise<void> {
+  const template = createOtpEmail(otp, to);
+  await sendEmail(to, template.subject, template.text, template.html);
+}
+
+/**
+ * Send invitation email with beautiful template
+ */
+export async function sendInvitationEmail(to: string, inviteLink: string, role: 'instructor' | 'student'): Promise<void> {
+  const template = createInvitationEmail(to, inviteLink, role);
+  await sendEmail(to, template.subject, template.text, template.html);
+}
+
+/**
+ * Send password reset email with beautiful template
+ */
+export async function sendPasswordResetEmail(to: string, resetLink: string): Promise<void> {
+  const template = createPasswordResetEmail(resetLink);
+  await sendEmail(to, template.subject, template.text, template.html);
+}
+
+/**
+ * Send class enrollment email with beautiful template
+ */
+export async function sendClassEnrollmentEmail(to: string, className: string, enrollmentCode: string, joinUrl: string): Promise<void> {
+  const template = createClassEnrollmentEmail(className, enrollmentCode, joinUrl, to);
+  await sendEmail(to, template.subject, template.text, template.html);
 }

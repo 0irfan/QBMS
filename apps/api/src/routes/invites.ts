@@ -6,7 +6,7 @@ import { instructorInvites, users, classes } from '@qbms/database';
 import { eq } from 'drizzle-orm';
 import { authMiddleware, requireRoles, type AuthRequest } from '../middleware/auth.js';
 import { z } from 'zod';
-import { sendEmail } from '../lib/email.js';
+import { sendInvitationEmail, sendClassEnrollmentEmail } from '../lib/email.js';
 
 export const invitesRouter = Router();
 
@@ -38,12 +38,7 @@ invitesRouter.post(
     });
 
     const registerLink = `${APP_URL}/register?invite=${token}`;
-    await sendEmail(
-      email,
-      'You\'re invited to join QBMS as an Instructor',
-      `You have been invited to join QBMS as an instructor. Create your account here: ${registerLink}\n\nThis link expires in 7 days.`,
-      `You have been invited to join QBMS as an instructor. <a href="${registerLink}">Create your account</a>. This link expires in 7 days.`
-    ).catch(() => {});
+    await sendInvitationEmail(email, registerLink, 'instructor').catch(() => {});
 
     res.status(201).json({ message: 'Invitation sent to ' + email });
   }
@@ -90,21 +85,11 @@ invitesRouter.post(
     if (existingUser) {
       // User exists, send them a join link
       const joinUrl = `${APP_URL}/dashboard/classes/join?code=${encodeURIComponent(cls.enrollmentCode)}`;
-      await sendEmail(
-        email,
-        `Join class: ${cls.className}`,
-        `You have been invited to join the class "${cls.className}". Use this link to join: ${joinUrl}\n\nOr enter this code manually: ${cls.enrollmentCode}`,
-        `You have been invited to join the class "<strong>${cls.className}</strong>". <a href="${joinUrl}">Join class</a>. Or enter this code manually: <code>${cls.enrollmentCode}</code>`
-      ).catch(() => {});
+      await sendClassEnrollmentEmail(email, cls.className, cls.enrollmentCode, joinUrl).catch(() => {});
     } else {
       // User doesn't exist, send them a registration link with the enrollment code
       const registerUrl = `${APP_URL}/register?code=${encodeURIComponent(cls.enrollmentCode)}&email=${encodeURIComponent(email)}`;
-      await sendEmail(
-        email,
-        `Join class: ${cls.className}`,
-        `You have been invited to join the class "${cls.className}". Create your account to join: ${registerUrl}\n\nEnrollment code: ${cls.enrollmentCode}`,
-        `You have been invited to join the class "<strong>${cls.className}</strong>". <a href="${registerUrl}">Create your account</a> to join. Enrollment code: <code>${cls.enrollmentCode}</code>`
-      ).catch(() => {});
+      await sendClassEnrollmentEmail(email, cls.className, cls.enrollmentCode, registerUrl).catch(() => {});
     }
 
     res.status(201).json({ message: 'Invitation sent to ' + email });

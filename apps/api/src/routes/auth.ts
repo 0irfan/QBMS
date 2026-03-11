@@ -14,7 +14,7 @@ import {
 } from '@qbms/shared';
 import { authMiddleware, type AuthRequest } from '../middleware/auth.js';
 import { redis, REDIS_KEYS } from '../lib/redis.js';
-import { sendEmail } from '../lib/email.js';
+import { sendOtpEmail, sendPasswordResetEmail } from '../lib/email.js';
 
 export const authRouter = Router();
 const OTP_TTL_SEC = 600; // 10 minutes
@@ -90,12 +90,7 @@ authRouter.post('/register', async (req, res) => {
   await redis.setex(key, OTP_TTL_SEC, otp);
 
   try {
-    await sendEmail(
-      email,
-      'Your QBMS registration OTP',
-      `Your verification code is: ${otp}\n\nIt expires in ${OTP_TTL_SEC / 60} minutes.`,
-      `<p>Your verification code is: <strong>${otp}</strong></p><p>It expires in ${OTP_TTL_SEC / 60} minutes.</p>`
-    );
+    await sendOtpEmail(email, otp);
   } catch (e) {
     console.error('Send OTP email error:', e);
     await redis.del(key);
@@ -295,12 +290,7 @@ authRouter.post('/forgot-password', async (req, res) => {
     const appUrl = process.env.APP_URL || 'http://localhost:8080';
     const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
     try {
-      await sendEmail(
-        user.email,
-        'Password Reset',
-        `Reset your password: ${resetLink}\n\nThis link expires in 1 hour.`,
-        `Reset your password: <a href="${resetLink}">${resetLink}</a><br><br>This link expires in 1 hour.`
-      );
+      await sendPasswordResetEmail(user.email, resetLink);
     } catch (e) {
       console.error('Email send error:', e);
     }
