@@ -71,13 +71,8 @@ authRouter.post('/register', async (req, res) => {
         .where(eq(classes.enrollmentCode, enrollmentNumber))
         .limit(1);
       if (cls) {
-        // Auto-enroll student to class
-        await db.insert(classEnrollments).values({
-          enrollmentId: uuidv4(),
-          classId: cls.classId,
-          studentId: 'pending', // Will be set after user is created
-          enrolledAt: new Date(),
-        });
+        // Auto-enroll student to class (will be completed after user is created in verify-otp)
+        // For now, just note that enrollment is pending
       }
     }
   }
