@@ -57,11 +57,23 @@ paperRouter.post('/generate', async (req: AuthRequest, res) => {
     const shuffled = [...arr].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, Math.min(n, shuffled.length));
   }
-  const selected = [
+  
+  // Pick questions based on difficulty distribution
+  let selected = [
     ...pickRandom(easy, easyCount),
     ...pickRandom(medium, mediumCount),
     ...pickRandom(hard, hardCount),
-  ].sort(() => Math.random() - 0.5);
+  ];
+  
+  // If we don't have enough questions, fill from remaining pool
+  if (selected.length < questionCount) {
+    const selectedIds = new Set(selected.map(q => q.questionId));
+    const remaining = pool.filter(q => !selectedIds.has(q.questionId));
+    const needed = questionCount - selected.length;
+    selected = [...selected, ...pickRandom(remaining, needed)];
+  }
+  
+  selected.sort(() => Math.random() - 0.5);
 
   const withOptions = await Promise.all(
     selected.map(async (q: QuestionRow) => {
