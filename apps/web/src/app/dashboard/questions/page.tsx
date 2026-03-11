@@ -196,45 +196,70 @@ export default function QuestionsPage() {
   }
 
   async function handleBulkImport() {
-    if (extracted.length === 0 || !extractedSubjectName) return;
-    setImporting(true);
-    setError('');
-    try {
-      // Find or match subject by name
-      const matchedSubject = subjects.find(s => 
-        s.subjectName.toLowerCase().trim() === extractedSubjectName.toLowerCase().trim()
-      );
-      
-      if (!matchedSubject) {
-        setError(`Subject "${extractedSubjectName}" not found. Please create this subject first.`);
+      if (extracted.length === 0 || !extractedSubjectName) return;
+      setImporting(true);
+      setError('');
+      try {
+        // Find or match subject by name
+        let matchedSubject = subjects.find(s => 
+          s.subjectName.toLowerCase().trim() === extractedSubjectName.toLowerCase().trim()
+        );
+
+        // If subject doesn't exist, create it automatically
+        if (!matchedSubject) {
+          try {
+            matchedSubject = await subjectsApi.create({
+              subjectName: extractedSubjectName,
+              description: `Auto-created from question paper upload`
+            });
+            // Update local subjects list
+            setSubjects([...subjects, matchedSubject]);
+          } catch (createErr) {
+            setError(`Failed to create subject "${extractedSubjectName}": ${createErr instanceof Error ? createErr.message : 'Unknown error'}`);
+            setImporting(false);
+            return;
+          }
+        }
+
+        // Find or create a topic for this subject
+        let subjectTopics = topics.filter(t => t.subjectId === matchedSubject!.subjectId);
+        let targetTopicId = '';
+
+        if (subjectTopics.length === 0) {
+          // No topics exist for this subject, create a default one
+          try {
+            const newTopic = await topicsApi.create({
+              subjectId: matchedSubject.subjectId,
+              topicName: 'General'
+            });
+            targetTopicId = newTopic.topicId;
+            // Update local topics list
+            setTopics([...topics, newTopic]);
+          } catch (createErr) {
+            setError(`Failed to create topic for subject "${extractedSubjectName}": ${createErr instanceof Error ? createErr.message : 'Unknown error'}`);
+            setImporting(false);
+            return;
+          }
+        } else {
+          targetTopicId = subjectTopics[0].topicId;
+        }
+
+        // Import all questions to the target topic
+        const res = await questionExtractApi.bulkImport(extracted, targetTopicId);
+        const successCount = res.results.filter(r => r.success).length;
+        setExtracted([]);
+        setExtractedSubjectName('');
+        setShowUpload(false);
+        const listRes = await questionsApi.list({ limit: 50 });
+        setList(listRes.data);
+        alert(`Successfully imported ${successCount} of ${res.results.length} questions to subject "${extractedSubjectName}"`);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Import failed');
+      } finally {
         setImporting(false);
-        return;
       }
-      
-      // Import all questions to the first topic of the matched subject
-      const subjectTopics = topics.filter(t => t.subjectId === matchedSubject.subjectId);
-      const targetTopicId = subjectTopics.length > 0 ? subjectTopics[0].topicId : '';
-      
-      if (!targetTopicId) {
-        setError(`No topics found for subject "${extractedSubjectName}". Please create a topic first.`);
-        setImporting(false);
-        return;
-      }
-      
-      const res = await questionExtractApi.bulkImport(extracted, targetTopicId);
-      const successCount = res.results.filter(r => r.success).length;
-      setExtracted([]);
-      setExtractedSubjectName('');
-      setShowUpload(false);
-      const listRes = await questionsApi.list({ limit: 50 });
-      setList(listRes.data);
-      alert(`Successfully imported ${successCount} of ${res.results.length} questions to subject "${extractedSubjectName}"`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Import failed');
-    } finally {
-      setImporting(false);
     }
-  }
+
 
   if (loading) {
     return (
