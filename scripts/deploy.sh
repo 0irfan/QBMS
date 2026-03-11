@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 SERVER_HOST="${SERVER_HOST:-qbms.pro}"
-SERVER_USER="${SERVER_USER:-root}"
+SERVER_USER="${SERVER_USER:-azureuser}"
 DEPLOY_DIR="/opt/qbms"
 BACKUP_DIR="/opt/qbms-backups"
 

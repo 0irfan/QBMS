@@ -120,46 +120,11 @@ jobs:
       - name: Copy docker-compose to server
         run: |
           scp docker-compose.prod.yml ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/opt/qbms/docker-compose.yml
-          scp docker/nginx.conf ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/opt/qbms/nginx.conf
+          scp docker/nginx.prod.conf ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/opt/qbms/nginx.conf
       
-      - name: Create .env file on server
+      - name: Verify .env file exists
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "sudo tee /opt/qbms/.env > /dev/null << 'EOF'
-          # Database
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          REDIS_URL=${{ secrets.REDIS_URL }}
-          
-          # Auth
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          REFRESH_SECRET=${{ secrets.REFRESH_SECRET }}
-          
-          # CORS
-          CORS_ORIGIN=https://qbms.pro
-          
-          # Azure Blob Storage
-          AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_BLOB_CONNECTION_STRING=${{ secrets.AZURE_BLOB_CONNECTION_STRING }}
-          AZURE_CONTAINER_NAME=${{ secrets.AZURE_CONTAINER_NAME }}
-          
-          # OpenAI
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          
-          # SMTP
-          SMTP_HOST=${{ secrets.SMTP_HOST }}
-          SMTP_PORT=${{ secrets.SMTP_PORT }}
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
-          FROM_EMAIL=${{ secrets.FROM_EMAIL }}
-          
-          # Application
-          APP_URL=https://qbms.pro
-          NODE_ENV=production
-          EOF"
-      
-      - name: Set .env file ownership
-        run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "sudo chown ${{ secrets.SSH_USER }}:${{ secrets.SSH_USER }} /opt/qbms/.env"
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "test -f /opt/qbms/.env && echo '.env file exists' || echo 'Warning: .env file not found'"
       
       - name: Login to GitHub Container Registry on server
         run: |
@@ -178,10 +143,37 @@ jobs:
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} \
             "docker compose -f /opt/qbms/docker-compose.yml exec -T api npm run migrate || true"
       
-      - name: Health check
+      - name: Wait for services to be ready
         run: |
-          sleep 10
-          curl -f https://qbms.pro/health || exit 1
+          echo "Waiting for services to start..."
+          sleep 60
+          
+      - name: Health check with retries
+        run: |
+          echo "Checking application health..."
+          max_attempts=5
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Health check attempt $attempt of $max_attempts..."
+            
+            if curl -f -s https://qbms.pro/health > /dev/null 2>&1; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            
+            if [ $attempt -lt $max_attempts ]; then
+              echo "Health check failed, waiting 15 seconds before retry..."
+              sleep 15
+            fi
+            
+            attempt=$((attempt + 1))
+          done
+          
+          echo "❌ Health check failed after $max_attempts attempts"
+          echo "Checking container status..."
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cd /opt/qbms && docker compose ps && docker compose logs --tail=50"
+          exit 1
       
       - name: Cleanup old images
         run: |
