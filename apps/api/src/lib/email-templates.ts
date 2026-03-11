@@ -2,6 +2,8 @@
  * Beautiful email templates for QBMS
  */
 
+import { emailHeader } from './email-logo.js';
+
 export interface EmailTemplate {
   subject: string;
   text: string;
@@ -32,7 +34,7 @@ export function createOtpEmail(otp: string, email: string): EmailTemplate {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                 <!-- Header -->
                 <tr>
-                  <td style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); padding: 40px 30px; text-align: center;">
+                  <td style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 30px; text-align: center;">
                     <svg width="60" height="60" viewBox="0 0 100 100" style="display: block; margin: 0 auto;">
                       <rect width="100" height="100" rx="20" fill="url(#grad1)"/>
                       <path d="M30 25 L70 25 L70 35 L40 35 L40 45 L65 45 L65 55 L40 55 L40 75 L30 75 Z" fill="white" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
@@ -56,7 +58,7 @@ export function createOtpEmail(otp: string, email: string): EmailTemplate {
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto; background-color: #f9fafb; border-radius: 12px; padding: 30px; border: 2px dashed #d1d5db;">
                       <tr>
                         <td style="text-align: center;">
-                          <span style="font-family: 'Courier New', monospace; font-size: 36px; font-weight: 700; color: #0d9488; letter-spacing: 8px;">${otp}</span>
+                          <span style="font-family: 'Courier New', monospace; font-size: 36px; font-weight: 700; color: #6366f1; letter-spacing: 8px;">${otp}</span>
                         </td>
                       </tr>
                     </table>
@@ -69,7 +71,7 @@ export function createOtpEmail(otp: string, email: string): EmailTemplate {
                     <!-- CTA Button -->
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
                       <tr>
-                        <td style="border-radius: 8px; background-color: #0d9488;">
+                        <td style="border-radius: 8px; background-color: #6366f1;">
                           <a href="${process.env.APP_URL || 'https://qbms.pro'}/register" target="_blank" style="display: inline-block; padding: 14px 36px; font-size: 16px; font-weight: 600; color: white; text-decoration: none;">
                             Complete Registration
                           </a>
@@ -126,7 +128,7 @@ export function createInvitationEmail(email: string, inviteLink: string, role: '
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                 <!-- Header -->
                 <tr>
-                  <td style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); padding: 40px 30px; text-align: center;">
+                  <td style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 30px; text-align: center;">
                     <svg width="60" height="60" viewBox="0 0 100 100" style="display: block; margin: 0 auto;">
                       <rect width="100" height="100" rx="20" fill="url(#grad1)"/>
                       <path d="M30 25 L70 25 L70 35 L40 35 L40 45 L65 45 L65 55 L40 55 L40 75 L30 75 Z" fill="white" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
@@ -149,7 +151,7 @@ export function createInvitationEmail(email: string, inviteLink: string, role: '
                     <!-- CTA Button -->
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
                       <tr>
-                        <td style="border-radius: 8px; background-color: #0d9488;">
+                        <td style="border-radius: 8px; background-color: #6366f1;">
                           <a href="${inviteLink}" target="_blank" style="display: inline-block; padding: 14px 36px; font-size: 16px; font-weight: 600; color: white; text-decoration: none;">
                             Create Your Account
                           </a>
@@ -209,7 +211,7 @@ export function createPasswordResetEmail(resetLink: string): EmailTemplate {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                 <!-- Header -->
                 <tr>
-                  <td style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); padding: 40px 30px; text-align: center;">
+                  <td style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 30px; text-align: center;">
                     <svg width="60" height="60" viewBox="0 0 100 100" style="display: block; margin: 0 auto;">
                       <rect width="100" height="100" rx="20" fill="url(#grad1)"/>
                       <path d="M30 25 L70 25 L70 35 L40 35 L40 45 L65 45 L65 55 L40 55 L40 75 L30 75 Z" fill="white" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
@@ -232,7 +234,7 @@ export function createPasswordResetEmail(resetLink: string): EmailTemplate {
                     <!-- CTA Button -->
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
                       <tr>
-                        <td style="border-radius: 8px; background-color: #0d9488;">
+                        <td style="border-radius: 8px; background-color: #6366f1;">
                           <a href="${resetLink}" target="_blank" style="display: inline-block; padding: 14px 36px; font-size: 16px; font-weight: 600; color: white; text-decoration: none;">
                             Reset Password
                           </a>
@@ -292,7 +294,7 @@ export function createClassEnrollmentEmail(className: string, enrollmentCode: st
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                 <!-- Header -->
                 <tr>
-                  <td style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); padding: 40px 30px; text-align: center;">
+                  <td style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 30px; text-align: center;">
                     <svg width="60" height="60" viewBox="0 0 100 100" style="display: block; margin: 0 auto;">
                       <rect width="100" height="100" rx="20" fill="url(#grad1)"/>
                       <path d="M30 25 L70 25 L70 35 L40 35 L40 45 L65 45 L65 55 L40 55 L40 75 L30 75 Z" fill="white" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
@@ -320,7 +322,7 @@ export function createClassEnrollmentEmail(className: string, enrollmentCode: st
                           <p style="color: #1f2937; margin: 0 0 20px 0; font-size: 20px; font-weight: 700;">${className}</p>
                           
                           <p style="color: #6b7280; margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Enrollment Code</p>
-                          <p style="color: #0d9488; margin: 0 0 20px 0; font-size: 24px; font-weight: 700; font-family: 'Courier New', monospace; letter-spacing: 2px;">${enrollmentCode}</p>
+                          <p style="color: #6366f1; margin: 0 0 20px 0; font-size: 24px; font-weight: 700; font-family: 'Courier New', monospace; letter-spacing: 2px;">${enrollmentCode}</p>
                           
                           <p style="color: #6b7280; margin: 0; font-size: 14px;">
                             Use this code to join the class after you register.
@@ -332,7 +334,7 @@ export function createClassEnrollmentEmail(className: string, enrollmentCode: st
                     <!-- CTA Button -->
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 25px auto;">
                       <tr>
-                        <td style="border-radius: 8px; background-color: #0d9488;">
+                        <td style="border-radius: 8px; background-color: #6366f1;">
                           <a href="${joinUrl}" target="_blank" style="display: inline-block; padding: 14px 36px; font-size: 16px; font-weight: 600; color: white; text-decoration: none;">
                             Join Class Now
                           </a>
@@ -366,3 +368,4 @@ export function createClassEnrollmentEmail(className: string, enrollmentCode: st
     `,
   };
 }
+
