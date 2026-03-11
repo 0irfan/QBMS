@@ -86,7 +86,7 @@ services:
     depends_on:
       - api
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://qbms-web/"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://172.18.0.5:3000/', (r) => process.exit(r.statusCode === 200 ? 0 : 1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
