@@ -33,11 +33,8 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
 // Initialize Azure Blob Storage
 const azureInitialized = initializeAzureStorage();
-if (azureInitialized) {
-  ensureContainerExists().catch((err) => {
-    logger.error('Failed to ensure Azure container exists:', err);
-  });
-}
+// Don't call ensureContainerExists on startup - it will be called on first upload
+// This prevents startup failures if Azure has issues
 
 app.use(helmet({
   contentSecurityPolicy: process.env.NODE_ENV === 'production',

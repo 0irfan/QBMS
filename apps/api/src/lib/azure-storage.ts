@@ -64,7 +64,14 @@ export async function ensureContainerExists(): Promise<boolean> {
       console.log(`✅ Container created: ${AZURE_CONTAINER_NAME}`);
     }
     return true;
-  } catch (error) {
+  } catch (error: any) {
+    // Handle crypto error gracefully - this is a known issue with Azure SDK in some Node environments
+    if (error?.message?.includes('crypto is not defined')) {
+      console.error('Azure SDK crypto error - disabling Azure storage. Using local storage fallback.');
+      blobServiceClient = null;
+      containerClient = null;
+      return false;
+    }
     console.error('Failed to ensure container exists:', error);
     return false;
   }
