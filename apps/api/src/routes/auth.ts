@@ -102,7 +102,7 @@ authRouter.post('/register', async (req, res) => {
 
 /** Step 2: Verify OTP and create account → then user must log in */
 authRouter.post('/register/verify-otp', async (req, res) => {
-  const body = req.body as { email: string; otp: string; name: string; password: string; role: string; inviteToken?: string };
+  const body = req.body as { email: string; otp: string; name: string; password: string; role: string; inviteToken?: string; enrollmentNumber?: string };
   const { email: rawEmail, otp } = body;
   const email = rawEmail?.toLowerCase?.()?.trim();
   if (!email || !otp || !body.name || !body.password || !body.role) {
