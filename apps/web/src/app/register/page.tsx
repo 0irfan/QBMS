@@ -17,7 +17,7 @@ function RegisterForm() {
   const [enrollmentNumber, setEnrollmentNumber] = useState(enrollmentCode || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<'student' | 'instructor'>('student');
+  const [role, setRole] = useState<'student' | 'instructor'>(inviteToken ? 'instructor' : 'student');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [inviteValidating, setInviteValidating] = useState(!!inviteToken);
@@ -118,7 +118,7 @@ function RegisterForm() {
                   ? 'You were invited as an instructor. Complete your registration below.'
                   : enrollmentCode
                     ? 'Create your account to join the class. Enter your enrollment number.'
-                    : 'Create your account to get started with QBMS.'}
+                    : 'Create your student account to get started with QBMS.'}
             </p>
             {inviteValidating && (
               <p className="mt-2 text-sm text-teal-600 dark:text-teal-400">Validating invite…</p>
@@ -243,8 +243,10 @@ function RegisterForm() {
                     className="input-field"
                   >
                     <option value="student">Student</option>
-                    <option value="instructor">Instructor</option>
                   </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Instructor registration is by invitation only.
+                  </p>
                 </div>
               )}
               {inviteToken && inviteValid && (
