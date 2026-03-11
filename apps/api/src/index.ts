@@ -23,6 +23,7 @@ import { auditRouter } from './routes/audit.js';
 import { invitesRouter } from './routes/invites.js';
 import { healthRouter } from './routes/health.js';
 import { aiRouter } from './routes/ai.js';
+import { questionExtractRouter } from './routes/question-extract.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -62,6 +63,7 @@ app.use('/api/analytics', analyticsRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/invites', invitesRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/question-extract', questionExtractRouter);
 
 app.use(errorHandler);
 

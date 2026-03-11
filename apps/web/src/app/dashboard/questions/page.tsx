@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth';
-import { questionsApi, topicsApi, aiApi, type GeneratedQuestion } from '@/lib/api';
-import { Plus, Loader2, ChevronDown, ChevronUp, HelpCircle, Sparkles } from 'lucide-react';
+import { questionsApi, topicsApi, aiApi, questionExtractApi, type GeneratedQuestion, type ExtractedQuestion } from '@/lib/api';
+import { Plus, Loader2, ChevronDown, ChevronUp, HelpCircle, Sparkles, Upload, FileText, Check, X, Edit2 } from 'lucide-react';
 
 type Question = {
   questionId: string;
@@ -42,6 +42,15 @@ export default function QuestionsPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [generated, setGenerated] = useState<GeneratedQuestion[]>([]);
   const [addingId, setAddingId] = useState<number | null>(null);
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadSubjectId, setUploadSubjectId] = useState('');
+  const [uploadTopicId, setUploadTopicId] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [extracted, setExtracted] = useState<ExtractedQuestion[]>([]);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editQuestion, setEditQuestion] = useState<ExtractedQuestion | null>(null);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     Promise.all([questionsApi.list({ limit: 50 }), topicsApi.list()])
@@ -142,6 +151,66 @@ export default function QuestionsPage() {
     setOptions([...options, { optionText: '', isCorrect: false }]);
   }
 
+  async function handleUpload() {
+    if (!uploadFile || !uploadTopicId) {
+      setError('Please select a file and topic');
+      return;
+    }
+    setUploading(true);
+    setError('');
+    setExtracted([]);
+    try {
+      const res = await questionExtractApi.upload(uploadFile, uploadSubjectId, uploadTopicId);
+      setExtracted(res.questions);
+      setUploadFile(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleEditExtracted(idx: number) {
+    setEditingIdx(idx);
+    setEditQuestion({ ...extracted[idx] });
+  }
+
+  function handleSaveEdit() {
+    if (editingIdx !== null && editQuestion) {
+      setExtracted(extracted.map((q, i) => (i === editingIdx ? editQuestion : q)));
+      setEditingIdx(null);
+      setEditQuestion(null);
+    }
+  }
+
+  function handleCancelEdit() {
+    setEditingIdx(null);
+    setEditQuestion(null);
+  }
+
+  function handleRemoveExtracted(idx: number) {
+    setExtracted(extracted.filter((_, i) => i !== idx));
+  }
+
+  async function handleBulkImport() {
+    if (extracted.length === 0 || !uploadTopicId) return;
+    setImporting(true);
+    setError('');
+    try {
+      const res = await questionExtractApi.bulkImport(extracted, uploadTopicId);
+      const successCount = res.results.filter(r => r.success).length;
+      setExtracted([]);
+      setShowUpload(false);
+      const listRes = await questionsApi.list({ limit: 50 });
+      setList(listRes.data);
+      alert(`Successfully imported ${successCount} of ${res.results.length} questions`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Import failed');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -177,6 +246,14 @@ export default function QuestionsPage() {
             >
               <Sparkles className="w-4 h-4" />
               {showAi ? 'Hide AI' : 'Create with AI'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowUpload(!showUpload)}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              {showUpload ? 'Hide Upload' : 'Upload Paper'}
             </button>
           </div>
         )}
@@ -261,6 +338,226 @@ export default function QuestionsPage() {
             Create question
           </button>
         </form>
+      )}
+
+      {canEdit && showUpload && (
+        <div className="card p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Upload className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+            Upload Question Paper (AI Extraction)
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Topic</label>
+              <select
+                value={uploadTopicId}
+                onChange={(e) => {
+                  const t = topics.find((x) => x.topicId === e.target.value);
+                  setUploadTopicId(e.target.value);
+                  if (t) setUploadSubjectId(t.subjectId);
+                }}
+                className="input-field"
+              >
+                <option value="">Select topic</option>
+                {topics.map((t) => (
+                  <option key={t.topicId} value={t.topicId}>{t.topicName}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">File (PDF/Image)</label>
+              <input
+                type="file"
+                accept=".pdf,image/png,image/jpeg,image/jpg"
+                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                className="input-field"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={handleUpload}
+                disabled={uploading || !uploadFile || !uploadTopicId}
+                className="btn-primary inline-flex items-center gap-2 w-full sm:w-auto"
+              >
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                Extract Questions
+              </button>
+            </div>
+          </div>
+          
+          {extracted.length > 0 && (
+            <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Extracted {extracted.length} question{extracted.length !== 1 ? 's' : ''} — review and approve:
+                </p>
+                <button
+                  type="button"
+                  onClick={handleBulkImport}
+                  disabled={importing}
+                  className="btn-primary text-sm inline-flex items-center gap-2"
+                >
+                  {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  Import All ({extracted.length})
+                </button>
+              </div>
+              <ul className="space-y-3">
+                {extracted.map((q, idx) => (
+                  <li key={idx} className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                    {editingIdx === idx && editQuestion ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Question Text</label>
+                          <textarea
+                            value={editQuestion.questionText}
+                            onChange={(e) => setEditQuestion({ ...editQuestion, questionText: e.target.value })}
+                            className="input-field text-sm min-h-[60px]"
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
+                            <select
+                              value={editQuestion.type}
+                              onChange={(e) => setEditQuestion({ ...editQuestion, type: e.target.value as 'mcq' | 'short' | 'essay' })}
+                              className="input-field text-sm"
+                            >
+                              <option value="mcq">MCQ</option>
+                              <option value="short">Short</option>
+                              <option value="essay">Essay</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Difficulty</label>
+                            <select
+                              value={editQuestion.difficulty}
+                              onChange={(e) => setEditQuestion({ ...editQuestion, difficulty: e.target.value as 'easy' | 'medium' | 'hard' })}
+                              className="input-field text-sm"
+                            >
+                              <option value="easy">Easy</option>
+                              <option value="medium">Medium</option>
+                              <option value="hard">Hard</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Marks</label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={editQuestion.marks}
+                              onChange={(e) => setEditQuestion({ ...editQuestion, marks: Number(e.target.value) })}
+                              className="input-field text-sm"
+                            />
+                          </div>
+                        </div>
+                        {editQuestion.type === 'mcq' && editQuestion.options && (
+                          <div className="space-y-2">
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">Options</label>
+                            {editQuestion.options.map((opt, optIdx) => (
+                              <div key={optIdx} className="flex gap-2 items-center">
+                                <input
+                                  type="radio"
+                                  checked={opt.isCorrect}
+                                  onChange={() => setEditQuestion({
+                                    ...editQuestion,
+                                    options: editQuestion.options?.map((o, i) => ({ ...o, isCorrect: i === optIdx }))
+                                  })}
+                                  className="rounded-full border-gray-300 text-teal-600 focus:ring-teal-500"
+                                />
+                                <input
+                                  type="text"
+                                  value={opt.optionText}
+                                  onChange={(e) => setEditQuestion({
+                                    ...editQuestion,
+                                    options: editQuestion.options?.map((o, i) => i === optIdx ? { ...o, optionText: e.target.value } : o)
+                                  })}
+                                  className="input-field text-sm flex-1"
+                                />
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setEditQuestion({
+                                ...editQuestion,
+                                options: [...(editQuestion.options || []), { optionText: '', isCorrect: false }]
+                              })}
+                              className="text-xs font-medium text-teal-600 dark:text-teal-400 hover:underline"
+                            >
+                              + Add option
+                            </button>
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={handleSaveEdit}
+                            className="btn-primary text-sm py-1.5 px-3"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            className="btn-secondary text-sm py-1.5 px-3"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white flex-1">{q.questionText}</p>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleEditExtracted(idx)}
+                              className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExtracted(idx)}
+                              className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400"
+                              title="Remove"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
+                          <span className="px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700">{q.type}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700">{q.difficulty}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700">{q.marks} mark{q.marks !== 1 ? 's' : ''}</span>
+                          {q.options?.length && <span className="px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300">{q.options.length} options</span>}
+                        </div>
+                        {q.type === 'mcq' && q.options && q.options.length > 0 && (
+                          <div className="mt-3 space-y-1.5 pl-4 border-l-2 border-gray-300 dark:border-gray-600">
+                            {q.options.map((opt, optIdx) => (
+                              <div key={optIdx} className="flex items-center gap-2 text-sm">
+                                {opt.isCorrect ? (
+                                  <Check className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" />
+                                ) : (
+                                  <span className="w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 shrink-0" />
+                                )}
+                                <span className={opt.isCorrect ? 'text-green-700 dark:text-green-300 font-medium' : 'text-gray-600 dark:text-gray-400'}>
+                                  {opt.optionText}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
 
       {canEdit && showAi && (

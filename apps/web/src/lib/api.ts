@@ -297,3 +297,44 @@ export const analyticsApi = {
   instructor: () => api<Record<string, unknown>>('/api/analytics/instructor'),
   student: () => api<Record<string, unknown>>('/api/analytics/student'),
 };
+
+// --- Question Extraction ---
+export type ExtractedQuestion = {
+  questionText: string;
+  type: 'mcq' | 'short' | 'essay';
+  difficulty: 'easy' | 'medium' | 'hard';
+  marks: number;
+  options?: { optionText: string; isCorrect: boolean }[];
+};
+export const questionExtractApi = {
+  upload: async (file: File, subjectId: string, topicId: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('subjectId', subjectId);
+    formData.append('topicId', topicId);
+    
+    const token = getToken();
+    const headers: HeadersInit = {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    };
+    
+    const res = await fetch(`${API_BASE}/api/question-extract/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
+    
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error((err as { error?: string }).error || 'Upload failed');
+    }
+    
+    return res.json() as Promise<{ message: string; questions: ExtractedQuestion[]; count: number }>;
+  },
+  bulkImport: (questions: ExtractedQuestion[], topicId: string) =>
+    api<{ message: string; results: { success: boolean; questionText: string; error?: string }[] }>(
+      '/api/question-extract/bulk-import',
+      { method: 'POST', body: JSON.stringify({ questions, topicId }) }
+    ),
+};
