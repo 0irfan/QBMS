@@ -165,18 +165,6 @@ function LoginForm() {
                 )}
               </button>
             </form>
-
-            <div className="mt-8 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Don't have an account?{' '}
-                <Link 
-                  href="/register" 
-                  className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
-                >
-                  Create an account
-                </Link>
-              </p>
-            </div>
           </div>
 
           {/* Footer */}

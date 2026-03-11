@@ -126,6 +126,14 @@ jobs:
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "test -f /opt/qbms/.env && echo '.env file exists' || echo 'Warning: .env file not found'"
       
+      - name: Update database and redis URLs in .env
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "
+            sudo sed -i 's|@localhost:5432|@postgres:5432|g' /opt/qbms/.env
+            sudo sed -i 's|redis://localhost|redis://redis|g' /opt/qbms/.env
+            echo 'Updated DATABASE_URL and REDIS_URL to use Docker service names'
+          "
+      
       - name: Login to GitHub Container Registry on server
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} \

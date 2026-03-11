@@ -35,27 +35,32 @@ function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-/** Step 1: Submit registration details → send OTP to email (no account created yet) */
+/** Step 1: Submit registration details → send OTP to email (no account created yet) 
+ * Registration now requires an invite token - no public registration allowed
+ */
 authRouter.post('/register', async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   let { name, email, password, role, inviteToken } = parsed.data;
   email = email.toLowerCase().trim();
 
-  if (inviteToken) {
-    const hash = hashToken(inviteToken);
-    const [invite] = await db
-      .select()
-      .from(instructorInvites)
-      .where(eq(instructorInvites.tokenHash, hash))
-      .limit(1);
-    if (!invite || invite.usedAt || invite.expiresAt < new Date()) {
-      return res.status(400).json({ error: 'Invalid or expired invite token' });
-    }
-    email = invite.email;
-    role = 'instructor';
-    // Invite is marked used only after OTP verify (in register/verify-otp)
+  // Require invite token for all registrations
+  if (!inviteToken) {
+    return res.status(403).json({ error: 'Registration requires an invitation. Please contact an administrator.' });
   }
+
+  const hash = hashToken(inviteToken);
+  const [invite] = await db
+    .select()
+    .from(instructorInvites)
+    .where(eq(instructorInvites.tokenHash, hash))
+    .limit(1);
+  if (!invite || invite.usedAt || invite.expiresAt < new Date()) {
+    return res.status(400).json({ error: 'Invalid or expired invite token' });
+  }
+  email = invite.email;
+  role = 'instructor';
+  // Invite is marked used only after OTP verify (in register/verify-otp)
 
   const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (existing.length) return res.status(409).json({ error: 'Email already registered' });

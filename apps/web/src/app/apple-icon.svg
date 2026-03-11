@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <rect width="180" height="180" rx="40" fill="#0d9488"/>
+  <g transform="translate(30, 30)">
+    <path d="M20 15 L100 15 L100 30 L45 30 L45 55 L90 55 L90 70 L45 70 L45 115 L20 115 Z" fill="white" stroke="white" stroke-width="2"/>
+    <circle cx="105" cy="100" r="12" fill="white"/>
+  </g>
+</svg>

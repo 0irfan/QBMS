@@ -293,6 +293,7 @@ export const paperApi = {
 
 // --- Analytics ---
 export const analyticsApi = {
+  dashboardStats: () => api<{ totalSubjects: number; totalQuestions: number; totalExams: number; totalClasses: number }>('/api/analytics/dashboard-stats'),
   instructor: () => api<Record<string, unknown>>('/api/analytics/instructor'),
   student: () => api<Record<string, unknown>>('/api/analytics/student'),
 };

@@ -1,0 +1,17 @@
+{
+  "name": "QBMS - Question Bank Management System",
+  "short_name": "QBMS",
+  "description": "Question Bank Management System for creating and managing assessments",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0d9488",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

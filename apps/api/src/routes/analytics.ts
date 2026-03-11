@@ -1,11 +1,31 @@
 import { Router } from 'express';
 import { db } from '../lib/db.js';
-import { examAttempts, results, questions, exams } from '@qbms/database';
+import { examAttempts, results, questions, exams, subjects, classes } from '@qbms/database';
 import { eq, sql } from 'drizzle-orm';
 import { authMiddleware, requireRoles, type AuthRequest } from '../middleware/auth.js';
 
 export const analyticsRouter = Router();
 analyticsRouter.use(authMiddleware);
+
+// Dashboard stats for instructors
+analyticsRouter.get('/dashboard-stats', requireRoles('super_admin', 'instructor'), async (req: AuthRequest, res) => {
+  try {
+    const [subjectsResult] = await db.select({ count: sql<number>`count(*)` }).from(subjects);
+    const [questionsResult] = await db.select({ count: sql<number>`count(*)` }).from(questions);
+    const [examsResult] = await db.select({ count: sql<number>`count(*)` }).from(exams);
+    const [classesResult] = await db.select({ count: sql<number>`count(*)` }).from(classes);
+    
+    res.json({
+      totalSubjects: Number(subjectsResult?.count || 0),
+      totalQuestions: Number(questionsResult?.count || 0),
+      totalExams: Number(examsResult?.count || 0),
+      totalClasses: Number(classesResult?.count || 0),
+    });
+  } catch (error) {
+    console.error('Dashboard stats error:', error);
+    res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+  }
+});
 
 analyticsRouter.get('/instructor', requireRoles('super_admin', 'instructor'), async (req: AuthRequest, res) => {
   const classId = req.query.classId as string | undefined;

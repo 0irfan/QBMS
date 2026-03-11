@@ -22,13 +22,6 @@ export default function HomePage() {
             <LogIn className="h-5 w-5" />
             Log in
           </Link>
-          <Link
-            href="/register"
-            className="btn-secondary inline-flex items-center gap-2 px-6 py-3"
-          >
-            <UserPlus className="h-5 w-5" />
-            Register
-          </Link>
         </div>
       </div>
       <footer className="py-4 text-center text-sm text-gray-500 dark:text-gray-400">

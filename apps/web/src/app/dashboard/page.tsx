@@ -1,7 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth';
+import { analyticsApi } from '@/lib/api';
 import { 
   BookOpen, 
   Layers, 
@@ -77,8 +79,19 @@ const cards = [
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const [stats, setStats] = useState<{ totalSubjects: number; totalQuestions: number; totalExams: number; totalClasses: number } | null>(null);
+  
+  const isInstructor = user?.role === 'instructor' || user?.role === 'super_admin';
+
+  useEffect(() => {
+    if (isInstructor) {
+      analyticsApi.dashboardStats()
+        .then(setStats)
+        .catch(() => setStats({ totalSubjects: 0, totalQuestions: 0, totalExams: 0, totalClasses: 0 }));
+    }
+  }, [isInstructor]);
+
   if (!user) return null;
-  const isInstructor = user.role === 'instructor' || user.role === 'super_admin';
 
   return (
     <div className="space-y-8">
@@ -122,7 +135,9 @@ export default function DashboardPage() {
               <TrendingUp className="h-5 w-5 text-emerald-500" />
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Subjects</p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">—</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {stats ? stats.totalSubjects : '—'}
+            </p>
           </div>
 
           <div className="stat-card group">
@@ -133,7 +148,9 @@ export default function DashboardPage() {
               <TrendingUp className="h-5 w-5 text-emerald-500" />
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Questions</p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">—</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {stats ? stats.totalQuestions : '—'}
+            </p>
           </div>
 
           <div className="stat-card group">
@@ -144,7 +161,9 @@ export default function DashboardPage() {
               <TrendingUp className="h-5 w-5 text-emerald-500" />
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Active Classes</p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">—</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {stats ? stats.totalClasses : '—'}
+            </p>
           </div>
 
           <div className="stat-card group">
@@ -155,7 +174,9 @@ export default function DashboardPage() {
               <TrendingUp className="h-5 w-5 text-emerald-500" />
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Exams</p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">—</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {stats ? stats.totalExams : '—'}
+            </p>
           </div>
         </div>
       )}
