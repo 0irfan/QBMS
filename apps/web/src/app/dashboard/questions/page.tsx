@@ -45,7 +45,6 @@ export default function QuestionsPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadSubjectId, setUploadSubjectId] = useState('');
-  const [uploadTopicId, setUploadTopicId] = useState('');
   const [uploading, setUploading] = useState(false);
   const [extracted, setExtracted] = useState<ExtractedQuestion[]>([]);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
@@ -152,15 +151,15 @@ export default function QuestionsPage() {
   }
 
   async function handleUpload() {
-    if (!uploadFile || !uploadTopicId) {
-      setError('Please select a file and topic');
+    if (!uploadFile || !uploadSubjectId) {
+      setError('Please select a file and subject');
       return;
     }
     setUploading(true);
     setError('');
     setExtracted([]);
     try {
-      const res = await questionExtractApi.upload(uploadFile, uploadSubjectId, uploadTopicId);
+      const res = await questionExtractApi.upload(uploadFile, uploadSubjectId, '');
       setExtracted(res.questions);
       setUploadFile(null);
     } catch (e) {
@@ -193,11 +192,21 @@ export default function QuestionsPage() {
   }
 
   async function handleBulkImport() {
-    if (extracted.length === 0 || !uploadTopicId) return;
+    if (extracted.length === 0 || !uploadSubjectId) return;
     setImporting(true);
     setError('');
     try {
-      const res = await questionExtractApi.bulkImport(extracted, uploadTopicId);
+      // Import all questions to the first topic of the selected subject
+      const subjectTopics = topics.filter(t => t.subjectId === uploadSubjectId);
+      const targetTopicId = subjectTopics.length > 0 ? subjectTopics[0].topicId : '';
+      
+      if (!targetTopicId) {
+        setError('No topics found for this subject. Please create a topic first.');
+        setImporting(false);
+        return;
+      }
+      
+      const res = await questionExtractApi.bulkImport(extracted, targetTopicId);
       const successCount = res.results.filter(r => r.success).length;
       setExtracted([]);
       setShowUpload(false);
@@ -348,19 +357,15 @@ export default function QuestionsPage() {
           </h2>
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Topic</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Subject</label>
               <select
-                value={uploadTopicId}
-                onChange={(e) => {
-                  const t = topics.find((x) => x.topicId === e.target.value);
-                  setUploadTopicId(e.target.value);
-                  if (t) setUploadSubjectId(t.subjectId);
-                }}
+                value={uploadSubjectId}
+                onChange={(e) => setUploadSubjectId(e.target.value)}
                 className="input-field"
               >
-                <option value="">Select topic</option>
+                <option value="">Select subject</option>
                 {topics.map((t) => (
-                  <option key={t.topicId} value={t.topicId}>{t.topicName}</option>
+                  <option key={t.subjectId} value={t.subjectId}>{t.subjectName}</option>
                 ))}
               </select>
             </div>
@@ -377,7 +382,7 @@ export default function QuestionsPage() {
               <button
                 type="button"
                 onClick={handleUpload}
-                disabled={uploading || !uploadFile || !uploadTopicId}
+                disabled={uploading || !uploadFile || !uploadSubjectId}
                 className="btn-primary inline-flex items-center gap-2 w-full sm:w-auto"
               >
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}

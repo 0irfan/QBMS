@@ -34,8 +34,8 @@ questionExtractRouter.post('/upload', upload.single('file'), async (req: AuthReq
     }
 
     const { subjectId, topicId } = req.body;
-    if (!subjectId || !topicId) {
-      return res.status(400).json({ error: 'subjectId and topicId are required' });
+    if (!subjectId) {
+      return res.status(400).json({ error: 'subjectId is required' });
     }
 
     // Extract questions using AI
