@@ -90,11 +90,6 @@ jobs:
       - name: Build packages
         run: npm run build
       
-      - name: Run database migrations
-        run: npm run db:migrate
-        env:
-          DATABASE_URL: postgresql://qbms:qbms@localhost:5432/qbms
-      
       - name: Start API server
         run: |
           cd apps/api
