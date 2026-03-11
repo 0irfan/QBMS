@@ -354,3 +354,59 @@ body {
 *:focus-visible {
   @apply outline-none ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-gray-900;
 }
+
+/* Print styles for question papers */
+@media print {
+  /* Hide navigation, buttons, and UI elements */
+  nav, header, footer, button, .no-print {
+    display: none !important;
+  }
+  
+  /* Hide the form side when printing */
+  .grid.lg\\:grid-cols-2 > div:first-child {
+    display: none !important;
+  }
+  
+  /* Make preview full width */
+  .grid.lg\\:grid-cols-2 > div:last-child {
+    grid-column: 1 / -1;
+  }
+  
+  /* Reset colors for print */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .card {
+    background: white !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  
+  /* Question styling for print */
+  ul li {
+    page-break-inside: avoid;
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+    margin-bottom: 1rem !important;
+  }
+  
+  /* Add page title */
+  .card::before {
+    content: "Question Paper";
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid black;
+  }
+  
+  /* Page breaks */
+  @page {
+    margin: 2cm;
+  }
+}

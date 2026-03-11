@@ -146,14 +146,25 @@ export default function PaperPage() {
         </form>
 
         <div className="card p-6">
-          <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Preview</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-gray-900 dark:text-white">Preview</h2>
+            {result && (
+              <button
+                onClick={() => window.print()}
+                className="btn-secondary flex items-center gap-2 px-4 py-2"
+              >
+                <FileText className="w-4 h-4" />
+                Print Paper
+              </button>
+            )}
+          </div>
           {!result ? (
             <p className="text-gray-500 dark:text-gray-400 text-sm">Generated questions will appear here.</p>
           ) : (
             <ul className="space-y-3 max-h-[480px] overflow-y-auto">
               {result.questions?.map((q, i) => (
                 <li key={q.questionId} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 text-sm border border-gray-100 dark:border-gray-700">
-                  <span className="font-medium text-teal-600 dark:text-teal-400">Q{i + 1}</span> · {q.difficulty} · {q.marks} marks
+                  <span className="font-medium text-teal-600 dark:text-teal-400">Q{i + 1}</span> · {q.marks} marks
                   <p className="mt-1 text-gray-800 dark:text-gray-200">{q.questionText}</p>
                 </li>
               ))}
