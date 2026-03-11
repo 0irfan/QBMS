@@ -1,7 +1,7 @@
 # QBMS - Current Project Status
 
-**Last Updated**: Context Transfer Complete  
-**Status**: ✅ Production Ready
+**Last Updated**: March 12, 2026 - Latest Fixes Applied  
+**Status**: ✅ Production Ready & Deployed
 
 ## 🎯 Project Completion: 100%
 
@@ -26,6 +26,10 @@ All features have been implemented, tested, and documented. The system is ready 
 - ✅ Instructor invitation system
 - ✅ Password reset via email
 - ✅ AI-powered question generation
+- ✅ AI question extraction from uploaded papers (PDF/Image)
+- ✅ Auto-detection of subject names from papers
+- ✅ Student-only registration with enrollment numbers
+- ✅ Instructor invite-only registration
 
 ### 2. Azure Blob Storage Integration (100%)
 - ✅ Azure SDK installed (@azure/storage-blob)
@@ -55,6 +59,26 @@ AZURE_CONTAINER_NAME=qbms
 - ✅ Hover effects and transitions
 - ✅ Full dark mode support
 - ✅ Responsive design (mobile, tablet, desktop)
+
+---
+
+## 🔧 Recent Fixes (March 12, 2026)
+
+### Registration Flow
+- ✅ Fixed enrollment number insertion bug (was trying to insert "pending" string into UUID column)
+- ✅ Updated registration page to student-only (instructors must use invitation link)
+- ✅ Enrollment now properly handled in verify-otp step
+
+### AI Question Extraction
+- ✅ Implemented auto-detection of subject names from uploaded papers
+- ✅ Removed manual subject selection dropdown
+- ✅ Added subject matching with clear error messages
+- ✅ Questions automatically imported to correct subject/topic
+
+### Docker Health Checks
+- ✅ Fixed API health check endpoint
+- ✅ Fixed nginx health check
+- ✅ Updated web container health check to use process monitoring
 
 ---
 
