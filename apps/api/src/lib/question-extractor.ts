@@ -1,4 +1,4 @@
-import { openai } from './openai.js';
+import { getOpenAIClient } from './openai.js';
 import pdf from 'pdf-parse';
 
 interface ExtractedQuestion {
@@ -33,11 +33,16 @@ async function extractText(file: Express.Multer.File): Promise<string> {
  */
 async function parseQuestionsWithAI(content: string, isImage: boolean): Promise<ExtractedQuestion[]> {
   try {
+    const client = getOpenAIClient();
+    if (!client) {
+      throw new Error('OpenAI API key not configured');
+    }
+
     let response;
 
     if (isImage) {
       // Use Vision API for images
-      response = await openai.chat.completions.create({
+      response = await client.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
@@ -67,7 +72,7 @@ Return ONLY a valid JSON array of questions, no additional text or markdown.`,
       });
     } else {
       // Use regular API for text
-      response = await openai.chat.completions.create({
+      response = await client.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
