@@ -13,10 +13,15 @@ import {
   resetPasswordSchema,
 } from '@qbms/shared';
 import { authMiddleware, type AuthRequest } from '../middleware/auth.js';
+import { auditMiddleware, setAuditLog, type AuditableRequest } from '../middleware/audit.js';
 import { redis, REDIS_KEYS } from '../lib/redis.js';
 import { sendOtpEmail, sendPasswordResetEmail } from '../lib/email.js';
 
 export const authRouter = Router();
+
+// Apply audit middleware to all routes
+authRouter.use(auditMiddleware);
+
 const OTP_TTL_SEC = 600; // 10 minutes
 const OTP_DIGITS = 6;
 
@@ -96,7 +101,7 @@ authRouter.post('/register', async (req, res) => {
 });
 
 /** Step 2: Verify OTP and create account → then user must log in */
-authRouter.post('/register/verify-otp', async (req, res) => {
+authRouter.post('/register/verify-otp', async (req: AuditableRequest, res) => {
   const body = req.body as { email: string; otp: string; name: string; password: string; role: string; inviteToken?: string; enrollmentNumber?: string };
   const { email: rawEmail, otp } = body;
   const email = rawEmail?.toLowerCase?.()?.trim();
@@ -162,17 +167,41 @@ authRouter.post('/register/verify-otp', async (req, res) => {
     }
   }
 
+  // Set audit log for registration
+  setAuditLog(req, 'user.register', 'user', newUser.userId, {
+    email,
+    role,
+    name,
+  });
+
   res.json({ message: 'Account created. Please log in.' });
 });
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', async (req: AuditableRequest, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { email, password } = parsed.data;
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  if (!user) return res.status(401).json({ error: 'Invalid email or password' });
-  if (user.status !== 'active') return res.status(403).json({ error: 'Account is inactive' });
+  if (!user) {
+    // Log failed login attempt
+    setAuditLog(req, 'user.login.failed', 'user', undefined, {
+      email,
+      reason: 'User not found',
+    });
+    return res.status(401).json({ error: 'Invalid email or password' });
+  }
+  if (user.status !== 'active') {
+    setAuditLog(req, 'user.login.failed', 'user', user.userId, {
+      email,
+      reason: 'Account inactive',
+    });
+    return res.status(403).json({ error: 'Account is inactive' });
+  }
   if (user.lockedUntil && user.lockedUntil > new Date()) {
+    setAuditLog(req, 'user.login.failed', 'user', user.userId, {
+      email,
+      reason: 'Account locked',
+    });
     return res.status(423).json({ error: 'Account locked. Try again later.' });
   }
   const valid = await bcrypt.compare(password, user.passwordHash);
@@ -182,6 +211,11 @@ authRouter.post('/login', async (req, res) => {
       ? new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000)
       : null;
     await db.update(users).set({ failedLoginAttempts: attempts, lockedUntil }).where(eq(users.userId, user.userId));
+    setAuditLog(req, 'user.login.failed', 'user', user.userId, {
+      email,
+      reason: 'Invalid password',
+      attempts,
+    });
     return res.status(401).json({ error: 'Invalid email or password' });
   }
   await db.update(users).set({ failedLoginAttempts: 0, lockedUntil: null }).where(eq(users.userId, user.userId));
@@ -201,6 +235,13 @@ authRouter.post('/login', async (req, res) => {
     tokenHash: hashToken(refreshToken),
     expiresAt,
   });
+  
+  // Set audit log for successful login
+  setAuditLog(req, 'user.login', 'user', user.userId, {
+    email: user.email,
+    role: user.role,
+  });
+  
   res
     .cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -293,7 +334,7 @@ authRouter.post('/forgot-password', async (req, res) => {
   res.json({ message: 'If the email exists, a reset link has been sent.' });
 });
 
-authRouter.post('/reset-password', async (req, res) => {
+authRouter.post('/reset-password', async (req: AuditableRequest, res) => {
   const parsed = resetPasswordSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { passwordResetTokens } = await import('@qbms/database');
@@ -309,6 +350,12 @@ authRouter.post('/reset-password', async (req, res) => {
   const passwordHash = await bcrypt.hash(parsed.data.password, SALT_ROUNDS);
   await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.userId, row.userId));
   await db.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.tokenId, row.tokenId));
+  
+  // Set audit log for password reset
+  setAuditLog(req, 'user.password.reset', 'user', row.userId, {
+    success: true,
+  });
+  
   res.json({ message: 'Password updated' });
 });
 

@@ -68,8 +68,13 @@ export const instructorInvites = pgTable('instructor_invites', {
 
 export const subjects = pgTable('subjects', {
   subjectId: uuid('subject_id').primaryKey().defaultRandom(),
+  classId: uuid('class_id')
+    .notNull()
+    .references(() => classes.classId, { onDelete: 'cascade' }),
   subjectName: varchar('subject_name', { length: 255 }).notNull(),
   description: text('description'),
+  createdBy: uuid('created_by').references(() => users.userId),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const topics = pgTable('topics', {
@@ -112,9 +117,6 @@ export const classes = pgTable(
     instructorId: uuid('instructor_id')
       .notNull()
       .references(() => users.userId, { onDelete: 'cascade' }),
-    subjectId: uuid('subject_id')
-      .notNull()
-      .references(() => subjects.subjectId, { onDelete: 'cascade' }),
     className: varchar('class_name', { length: 255 }).notNull(),
     enrollmentCode: varchar('enrollment_code', { length: 50 }).notNull().unique(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -200,10 +202,13 @@ export const results = pgTable('results', {
 export const auditLogs = pgTable('audit_logs', {
   logId: uuid('log_id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.userId, { onDelete: 'set null' }),
+  userEmail: varchar('user_email', { length: 255 }),
+  userRole: userRoleEnum('user_role'),
   action: varchar('action', { length: 100 }).notNull(),
   resourceType: varchar('resource_type', { length: 100 }).notNull(),
   resourceId: uuid('resource_id'),
-  ipAddress: varchar('ip_address', { length: 45 }), // INET as varchar
+  details: text('details'),
+  ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: text('user_agent'),
   timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -218,9 +223,16 @@ export const usersRelations = relations(users, ({ many }) => ({
   auditLogs: many(auditLogs),
 }));
 
-export const subjectsRelations = relations(subjects, ({ many }) => ({
+export const subjectsRelations = relations(subjects, ({ one, many }) => ({
+  class: one(classes, {
+    fields: [subjects.classId],
+    references: [classes.classId],
+  }),
   topics: many(topics),
-  classes: many(classes),
+  createdByUser: one(users, {
+    fields: [subjects.createdBy],
+    references: [users.userId],
+  }),
 }));
 
 export const topicsRelations = relations(topics, ({ one, many }) => ({
@@ -241,8 +253,14 @@ export const questionOptionsRelations = relations(questionOptions, ({ one }) => 
 }));
 
 export const classesRelations = relations(classes, ({ one, many }) => ({
-  instructor: one(users),
-  subject: one(subjects),
+  instructor: one(users, {
+    fields: [classes.instructorId],
+    references: [users.userId],
+  }),
+  subjects: many(subjects),
+  enrollments: many(classEnrollments),
+  exams: many(exams),
+}));
   enrollments: many(classEnrollments),
   exams: many(exams),
 }));

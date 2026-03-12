@@ -12,12 +12,19 @@ function RegisterForm() {
   const inviteToken = searchParams.get('invite') || undefined;
   const enrollmentCode = searchParams.get('code') || undefined;
   const prefilledEmail = searchParams.get('email') || '';
+  
+  // Determine role based on context
+  const isInstructorInvite = !!inviteToken;
+  const isStudentEnrollment = !!enrollmentCode;
+  const defaultRole = isInstructorInvite ? 'instructor' : 'student';
+  const roleIsLocked = isInstructorInvite || isStudentEnrollment;
+  
   const [name, setName] = useState('');
   const [email, setEmail] = useState(prefilledEmail);
   const [enrollmentNumber, setEnrollmentNumber] = useState(enrollmentCode || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<'student' | 'instructor'>(inviteToken ? 'instructor' : 'student');
+  const [role, setRole] = useState<'student' | 'instructor'>(defaultRole);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [inviteValidating, setInviteValidating] = useState(!!inviteToken);
@@ -117,8 +124,10 @@ function RegisterForm() {
                 : inviteValid
                   ? 'You were invited as an instructor. Complete your registration below.'
                   : enrollmentCode
-                    ? 'Create your account to join the class. Enter your enrollment number.'
-                    : 'Create your student account to get started with QBMS.'}
+                    ? 'You are registering as a student. Complete your details to join the class.'
+                    : roleIsLocked
+                      ? `Registering as ${role}.`
+                      : 'Create your account to get started with QBMS.'}
             </p>
             {inviteValidating && (
               <p className="mt-2 text-sm text-teal-600 dark:text-teal-400">Validating invite…</p>
@@ -232,10 +241,10 @@ function RegisterForm() {
                   </button>
                 </div>
               </div>
-              {!inviteToken && (
+              {!inviteToken && !roleIsLocked && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                    Role
+                    I am a
                   </label>
                   <select
                     value={role}
@@ -243,9 +252,20 @@ function RegisterForm() {
                     className="input-field"
                   >
                     <option value="student">Student</option>
+                    <option value="instructor">Instructor</option>
                   </select>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Instructor registration is by invitation only.
+                    {role === 'student' 
+                      ? 'Students can join classes using enrollment codes.'
+                      : 'Instructors can create classes and manage exams.'}
+                  </p>
+                </div>
+              )}
+              {roleIsLocked && !inviteToken && (
+                <div className="rounded-xl bg-teal-50 dark:bg-teal-900/20 px-4 py-3">
+                  <p className="text-sm text-teal-700 dark:text-teal-300">
+                    Registering as <span className="font-semibold capitalize">{role}</span>
+                    {enrollmentCode && ' to join a class'}
                   </p>
                 </div>
               )}
