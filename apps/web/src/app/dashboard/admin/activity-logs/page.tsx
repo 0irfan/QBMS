@@ -69,9 +69,9 @@ export default function ActivityLogsPage() {
         ),
       });
       
-      const response = await api.get(`/admin/activity-logs?${params}`);
-      setLogs(response.data.logs);
-      setPagination(response.data.pagination);
+      const response = await api<{ logs: ActivityLog[]; pagination: Pagination }>(`/api/admin/activity-logs?${params}`);
+      setLogs(response.logs);
+      setPagination(response.pagination);
     } catch (error) {
       console.error('Failed to fetch logs:', error);
     } finally {
