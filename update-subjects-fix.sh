@@ -1,3 +1,10 @@
+#!/bin/bash
+
+# Quick fix script for subjects page
+echo "Updating subjects page to include class selector..."
+
+# Update the subjects page
+cat > apps/web/src/app/dashboard/subjects/page.tsx << 'EOF'
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -189,3 +196,17 @@ export default function SubjectsPage() {
     </div>
   );
 }
+EOF
+
+# Update the API file - find and replace the subjects section
+sed -i '/\/\/ --- Subjects ---/,/\/\/ --- Topics ---/{
+  s/export type Subject = { subjectId: string; subjectName: string; description: string | null };/export type Subject = { subjectId: string; subjectName: string; description: string | null; classId: string };/
+  s/create: (data: { subjectName: string; description\?: string })/create: (data: { classId: string; subjectName: string; description?: string })/
+}' apps/web/src/lib/api.ts
+
+echo "Files updated successfully!"
+echo "Now run: git add . && git commit -m 'Fix subjects page' && git push origin main"
+EOF
+
+chmod +x update-subjects-fix.sh
+echo "Created update script. Run this on the server in the ~/QBMS directory."

@@ -205,20 +205,11 @@ export default function QuestionsPage() {
           s.subjectName.toLowerCase().trim() === extractedSubjectName.toLowerCase().trim()
         );
 
-        // If subject doesn't exist, create it automatically
+        // If subject doesn't exist, we need to show an error since subjects now require classId
         if (!matchedSubject) {
-          try {
-            matchedSubject = await subjectsApi.create({
-              subjectName: extractedSubjectName,
-              description: `Auto-created from question paper upload`
-            });
-            // Update local subjects list
-            setSubjects([...subjects, matchedSubject]);
-          } catch (createErr) {
-            setError(`Failed to create subject "${extractedSubjectName}": ${createErr instanceof Error ? createErr.message : 'Unknown error'}`);
-            setImporting(false);
-            return;
-          }
+          setError(`Subject "${extractedSubjectName}" not found. Please create the subject first in the Subjects page, then try importing again.`);
+          setImporting(false);
+          return;
         }
 
         // Find or create a topic for this subject
@@ -315,12 +306,24 @@ export default function QuestionsPage() {
         </div>
       )}
 
-      {showForm && canEdit && (
-        <form onSubmit={handleCreate} className="card p-6 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+      {canEdit && showAi && (
+        <div className="card p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+            Generate questions with OpenAI
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Topic</label>
-              <select value={topicId} onChange={(e) => setTopicId(e.target.value)} className="input-field" required>
+              <select
+                value={aiTopicId}
+                onChange={(e) => {
+                  const t = topics.find((x) => x.topicId === e.target.value);
+                  setAiTopicId(e.target.value);
+                  if (t) setAiTopicName(t.topicName);
+                }}
+                className="input-field"
+              >
                 {topics.map((t) => (
                   <option key={t.topicId} value={t.topicId}>{t.topicName}</option>
                 ))}
@@ -328,7 +331,7 @@ export default function QuestionsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Type</label>
-              <select value={type} onChange={(e) => setType(e.target.value as 'mcq' | 'short' | 'essay')} className="input-field">
+              <select value={aiType} onChange={(e) => setAiType(e.target.value as 'mcq' | 'short' | 'essay')} className="input-field">
                 <option value="mcq">MCQ</option>
                 <option value="short">Short</option>
                 <option value="essay">Essay</option>
@@ -336,58 +339,62 @@ export default function QuestionsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Difficulty</label>
-              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as 'easy' | 'medium' | 'hard')} className="input-field">
+              <select value={aiDifficulty} onChange={(e) => setAiDifficulty(e.target.value as 'easy' | 'medium' | 'hard')} className="input-field">
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Marks</label>
-              <input type="number" min={1} value={marks} onChange={(e) => setMarks(Number(e.target.value))} className="input-field" />
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Count</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={aiCount}
+                onChange={(e) => setAiCount(Number(e.target.value))}
+                className="input-field"
+              />
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Question text</label>
-            <textarea
-              value={questionText}
-              onChange={(e) => setQuestionText(e.target.value)}
-              className="input-field min-h-[80px]"
-              placeholder="Enter the question..."
-              required
-            />
-          </div>
-          {type === 'mcq' && (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Options (mark one correct)</label>
-              {options.map((o, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <input
-                    type="radio"
-                    name="correct"
-                    checked={o.isCorrect}
-                    onChange={() => setOptions(options.map((opt, j) => ({ ...opt, isCorrect: j === i })))}
-                    className="rounded-full border-gray-300 text-teal-600 focus:ring-teal-500"
-                  />
-                  <input
-                    type="text"
-                    value={o.optionText}
-                    onChange={(e) => setOptions(options.map((opt, j) => (j === i ? { ...opt, optionText: e.target.value } : opt)))}
-                    placeholder={`Option ${i + 1}`}
-                    className="input-field flex-1"
-                  />
-                </div>
-              ))}
-              <button type="button" onClick={addOption} className="text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline">
-                + Add option
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={handleGenerateAi}
+                disabled={aiLoading}
+                className="btn-primary inline-flex items-center gap-2 w-full sm:w-auto"
+              >
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Generate
               </button>
             </div>
+          </div>
+          {generated.length > 0 && (
+            <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Generated — add to bank:</p>
+              <ul className="space-y-2">
+                {generated.map((q, idx) => (
+                  <li key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{q.questionText}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {q.type} · {q.difficulty} · {q.marks} mark{q.marks !== 1 ? 's' : ''}
+                        {q.options?.length ? ` · ${q.options.length} options` : ''}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddGenerated(idx)}
+                      disabled={addingId === idx}
+                      className="btn-primary text-sm py-1.5 px-3 shrink-0"
+                    >
+                      {addingId === idx ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add to bank'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-          <button type="submit" disabled={submitting} className="btn-primary inline-flex items-center gap-2">
-            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            Create question
-          </button>
-        </form>
+        </div>
       )}
 
       {canEdit && showUpload && (
@@ -398,6 +405,8 @@ export default function QuestionsPage() {
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Upload a PDF or image of a question paper. AI will automatically extract the subject name and questions.
+            <br />
+            <span className="text-amber-600 dark:text-amber-400 font-medium">Note:</span> The extracted subject must already exist in your system. Create subjects first in the Subjects page if needed.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -604,95 +613,79 @@ export default function QuestionsPage() {
         </div>
       )}
 
-      {canEdit && showAi && (
-            <div className="card p-6 space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                Generate questions with OpenAI
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Topic</label>
-                  <select
-                    value={aiTopicId}
-                    onChange={(e) => {
-                      const t = topics.find((x) => x.topicId === e.target.value);
-                      setAiTopicId(e.target.value);
-                      if (t) setAiTopicName(t.topicName);
-                    }}
-                    className="input-field"
-                  >
-                    {topics.map((t) => (
-                      <option key={t.topicId} value={t.topicId}>{t.topicName}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Type</label>
-                  <select value={aiType} onChange={(e) => setAiType(e.target.value as 'mcq' | 'short' | 'essay')} className="input-field">
-                    <option value="mcq">MCQ</option>
-                    <option value="short">Short</option>
-                    <option value="essay">Essay</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Difficulty</label>
-                  <select value={aiDifficulty} onChange={(e) => setAiDifficulty(e.target.value as 'easy' | 'medium' | 'hard')} className="input-field">
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Count</label>
+      {showForm && canEdit && (
+        <form onSubmit={handleCreate} className="card p-6 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Topic</label>
+              <select value={topicId} onChange={(e) => setTopicId(e.target.value)} className="input-field" required>
+                {topics.map((t) => (
+                  <option key={t.topicId} value={t.topicId}>{t.topicName}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Type</label>
+              <select value={type} onChange={(e) => setType(e.target.value as 'mcq' | 'short' | 'essay')} className="input-field">
+                <option value="mcq">MCQ</option>
+                <option value="short">Short</option>
+                <option value="essay">Essay</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Difficulty</label>
+              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as 'easy' | 'medium' | 'hard')} className="input-field">
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Marks</label>
+              <input type="number" min={1} value={marks} onChange={(e) => setMarks(Number(e.target.value))} className="input-field" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Question text</label>
+            <textarea
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
+              className="input-field min-h-[80px]"
+              placeholder="Enter the question..."
+              required
+            />
+          </div>
+          {type === 'mcq' && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Options (mark one correct)</label>
+              {options.map((o, i) => (
+                <div key={i} className="flex gap-2 items-center">
                   <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={aiCount}
-                    onChange={(e) => setAiCount(Number(e.target.value))}
-                    className="input-field"
+                    type="radio"
+                    name="correct"
+                    checked={o.isCorrect}
+                    onChange={() => setOptions(options.map((opt, j) => ({ ...opt, isCorrect: j === i })))}
+                    className="rounded-full border-gray-300 text-teal-600 focus:ring-teal-500"
+                  />
+                  <input
+                    type="text"
+                    value={o.optionText}
+                    onChange={(e) => setOptions(options.map((opt, j) => (j === i ? { ...opt, optionText: e.target.value } : opt)))}
+                    placeholder={`Option ${i + 1}`}
+                    className="input-field flex-1"
                   />
                 </div>
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={handleGenerateAi}
-                    disabled={aiLoading}
-                    className="btn-primary inline-flex items-center gap-2 w-full sm:w-auto"
-                  >
-                    {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    Generate
-                  </button>
-                </div>
-              </div>
-              {generated.length > 0 && (
-                <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Generated — add to bank:</p>
-                  <ul className="space-y-2">
-                    {generated.map((q, idx) => (
-                      <li key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{q.questionText}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            {q.type} · {q.difficulty} · {q.marks} mark{q.marks !== 1 ? 's' : ''}
-                            {q.options?.length ? ` · ${q.options.length} options` : ''}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleAddGenerated(idx)}
-                          disabled={addingId === idx}
-                          className="btn-primary text-sm py-1.5 px-3 shrink-0"
-                        >
-                          {addingId === idx ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add to bank'}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              ))}
+              <button type="button" onClick={addOption} className="text-sm font-medium text-teal-600 dark:text-teal-400 hover:underline">
+                + Add option
+              </button>
             </div>
+          )}
+          <button type="submit" disabled={submitting} className="btn-primary inline-flex items-center gap-2">
+            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            Create question
+          </button>
+        </form>
       )}
 
       <div className="card overflow-hidden">

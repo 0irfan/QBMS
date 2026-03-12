@@ -76,11 +76,11 @@ export const invitesApi = {
 };
 
 // --- Subjects ---
-export type Subject = { subjectId: string; subjectName: string; description: string | null };
+export type Subject = { subjectId: string; subjectName: string; description: string | null; classId: string };
 export const subjectsApi = {
   list: () => api<Subject[]>('/api/subjects'),
   get: (id: string) => api<Subject>(`/api/subjects/${id}`),
-  create: (data: { subjectName: string; description?: string }) =>
+  create: (data: { classId: string; subjectName: string; description?: string }) =>
     api<Subject>('/api/subjects', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: { subjectName?: string; description?: string }) =>
     api<Subject>(`/api/subjects/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

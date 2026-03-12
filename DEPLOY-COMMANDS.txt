@@ -1,0 +1,41 @@
+# Copy and paste these commands into your SSH session
+# SSH to your server first: ssh azureuser@qbms.pro
+
+# 1. Find the project directory
+find ~ -name "docker-compose.yml" -type f 2>/dev/null
+
+# 2. Navigate to the project directory (replace with actual path from above)
+cd ~/qbms  # or the path you found
+
+# 3. Check current git status
+git status
+
+# 4. Pull latest changes
+git pull origin main
+
+# 5. Verify the fix is pulled (should see commit 6dacea9)
+git log --oneline -3
+
+# 6. Stop services
+docker-compose down
+
+# 7. Rebuild API with no cache
+docker-compose build --no-cache api
+
+# 8. Start all services
+docker-compose up -d
+
+# 9. Wait for services to start
+sleep 10
+
+# 10. Check if services are running
+docker-compose ps
+
+# 11. Test the API endpoint
+curl http://localhost:4000/api/subjects
+
+# 12. Check API logs
+docker-compose logs api --tail=50
+
+# If everything looks good, test from outside
+curl https://qbms.pro/api/subjects
