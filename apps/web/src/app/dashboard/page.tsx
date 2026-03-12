@@ -6,11 +6,9 @@ import { useAuthStore } from '@/stores/auth';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loading } = useAuthStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
-    if (loading) return;
-
     if (!user) {
       router.push('/login');
       return;
@@ -31,7 +29,7 @@ export default function DashboardPage() {
       default:
         router.push('/login');
     }
-  }, [user, loading, router]);
+  }, [user, router]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
