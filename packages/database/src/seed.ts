@@ -58,13 +58,32 @@ async function seed() {
     })
     .returning({ userId: users.userId });
 
+  // Create class first (Phase 4: classes no longer have subjectId)
+  const [demoClass] = await db
+    .insert(classes)
+    .values({
+      instructorId: instructor!.userId,
+      className: 'Math 101',
+      enrollmentCode: 'MATH101-2024',
+    })
+    .returning({ classId: classes.classId });
+
+  // Create subjects with classId (Phase 4: subjects now require classId)
   const [math] = await db
     .insert(subjects)
-    .values({ subjectName: 'Mathematics', description: 'Algebra, Calculus, Statistics' })
+    .values({ 
+      classId: demoClass!.classId,
+      subjectName: 'Mathematics', 
+      description: 'Algebra, Calculus, Statistics' 
+    })
     .returning({ subjectId: subjects.subjectId });
   const [physics] = await db
     .insert(subjects)
-    .values({ subjectName: 'Physics', description: 'Mechanics, Optics, Electromagnetism' })
+    .values({ 
+      classId: demoClass!.classId,
+      subjectName: 'Physics', 
+      description: 'Mechanics, Optics, Electromagnetism' 
+    })
     .returning({ subjectId: subjects.subjectId });
 
   const [algTopic] = await db
@@ -110,16 +129,7 @@ async function seed() {
     })
     .returning({ questionId: questions.questionId });
 
-  const [demoClass] = await db
-    .insert(classes)
-    .values({
-      instructorId: instructor!.userId,
-      subjectId: math!.subjectId,
-      className: 'Math 101',
-      enrollmentCode: 'MATH101-2024',
-    })
-    .returning({ classId: classes.classId });
-
+  // Enroll student in class
   await db.insert(classEnrollments).values({
     classId: demoClass!.classId,
     studentId: student!.userId,
