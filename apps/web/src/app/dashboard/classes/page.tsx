@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth';
-import { classesApi, subjectsApi, invitesApi } from '@/lib/api';
+import { classesApi, invitesApi } from '@/lib/api';
 import { Plus, Loader2, Copy, Check, Users, Mail, LogIn } from 'lucide-react';
 
 type ClassRow = {
@@ -19,11 +19,9 @@ export default function ClassesPage() {
   const canEdit = user?.role === 'super_admin' || user?.role === 'instructor';
   const isStudent = user?.role === 'student';
   const [list, setList] = useState<ClassRow[]>([]);
-  const [subjects, setSubjects] = useState<{ subjectId: string; subjectName: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [subjectId, setSubjectId] = useState('');
   const [className, setClassName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -33,11 +31,9 @@ export default function ClassesPage() {
   const [inviteDone, setInviteDone] = useState(false);
 
   useEffect(() => {
-    Promise.all([classesApi.list(), subjectsApi.list()])
-      .then(([c, s]) => {
+    classesApi.list()
+      .then((c) => {
         setList(c);
-        setSubjects(s);
-        if (s.length && !subjectId) setSubjectId(s[0].subjectId);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -45,11 +41,11 @@ export default function ClassesPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!subjectId || !className.trim()) return;
+    if (!className.trim()) return;
     setSubmitting(true);
     setError('');
     try {
-      const created = await classesApi.create({ subjectId, className: className.trim() });
+      const created = await classesApi.create({ className: className.trim() });
       setList((prev) => [created, ...prev]);
       setClassName('');
       setShowForm(false);
@@ -125,14 +121,6 @@ export default function ClassesPage() {
 
       {showForm && canEdit && (
         <form onSubmit={handleCreate} className="card p-6 space-y-4 max-w-md">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Subject</label>
-            <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="input-field" required>
-              {subjects.map((s) => (
-                <option key={s.subjectId} value={s.subjectId}>{s.subjectName}</option>
-              ))}
-            </select>
-          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Class name</label>
             <input

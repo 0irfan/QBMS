@@ -164,7 +164,7 @@ export const classesApi = {
   list: () => api<ClassItem[]>('/api/classes'),
   get: (id: string) => api<ClassItem>(`/api/classes/${id}`),
   getStudents: (id: string) => api<EnrolledStudent[]>(`/api/classes/${id}/students`),
-  create: (data: { subjectId: string; className: string; enrollmentCode?: string }) =>
+  create: (data: { className: string; enrollmentCode?: string }) =>
     api<ClassItem>('/api/classes', { method: 'POST', body: JSON.stringify(data) }),
   enroll: (enrollmentCode: string) =>
     api<{ classId: string; className: string }>('/api/classes/enroll', {
