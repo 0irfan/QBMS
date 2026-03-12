@@ -46,12 +46,12 @@ export default function StudentDashboard() {
   const fetchDashboardData = async () => {
     try {
       const [classesRes, attemptsRes] = await Promise.all([
-        api.get('/classes'),
-        api.get('/attempts/my').catch(() => ({ data: [] })),
+        api<Class[]>('/api/classes'),
+        api<ExamAttempt[]>('/api/attempts/my').catch(() => []),
       ]);
 
-      setClasses(classesRes.data || []);
-      setRecentAttempts((attemptsRes.data || []).slice(0, 5));
+      setClasses(classesRes || []);
+      setRecentAttempts((attemptsRes || []).slice(0, 5));
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {

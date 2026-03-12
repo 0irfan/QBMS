@@ -44,17 +44,17 @@ export default function InstructorDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const classesRes = await api.get('/classes');
-      const classesData = classesRes.data || [];
+      const classesRes = await api<Class[]>('/api/classes');
+      const classesData = classesRes || [];
 
       // Fetch enrollment counts for each class
       const classesWithCounts = await Promise.all(
         classesData.map(async (cls: Class) => {
           try {
-            const studentsRes = await api.get(`/classes/${cls.classId}/students`);
+            const studentsRes = await api<any[]>(`/api/classes/${cls.classId}/students`);
             return {
               ...cls,
-              enrollmentCount: studentsRes.data?.length || 0,
+              enrollmentCount: studentsRes?.length || 0,
             };
           } catch {
             return { ...cls, enrollmentCount: 0 };
@@ -71,8 +71,8 @@ export default function InstructorDashboard() {
       );
 
       // Fetch exams count
-      const examsRes = await api.get('/exams').catch(() => ({ data: [] }));
-      const totalExams = examsRes.data?.length || 0;
+      const examsRes = await api<any[]>('/api/exams').catch(() => []);
+      const totalExams = examsRes?.length || 0;
 
       setStats({
         totalClasses: classesWithCounts.length,

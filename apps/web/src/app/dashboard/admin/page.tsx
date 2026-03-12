@@ -34,17 +34,17 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       const [usersRes, classesRes, subjectsRes, examsRes] = await Promise.all([
-        api.get('/users').catch(() => ({ data: [] })),
-        api.get('/classes').catch(() => ({ data: [] })),
-        api.get('/subjects').catch(() => ({ data: [] })),
-        api.get('/exams').catch(() => ({ data: [] })),
+        api<any[]>('/api/users').catch(() => []),
+        api<any[]>('/api/classes').catch(() => []),
+        api<any[]>('/api/subjects').catch(() => []),
+        api<any[]>('/api/exams').catch(() => []),
       ]);
 
       setStats({
-        totalUsers: usersRes.data?.length || 0,
-        totalClasses: classesRes.data?.length || 0,
-        totalSubjects: subjectsRes.data?.length || 0,
-        totalExams: examsRes.data?.length || 0,
+        totalUsers: usersRes?.length || 0,
+        totalClasses: classesRes?.length || 0,
+        totalSubjects: subjectsRes?.length || 0,
+        totalExams: examsRes?.length || 0,
       });
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
