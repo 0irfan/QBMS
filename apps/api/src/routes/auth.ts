@@ -19,8 +19,7 @@ import { sendOtpEmail, sendPasswordResetEmail } from '../lib/email.js';
 
 export const authRouter = Router();
 
-// Apply audit middleware to all routes
-authRouter.use(auditMiddleware);
+// Audit middleware is applied per-route with specific actions
 
 const OTP_TTL_SEC = 600; // 10 minutes
 const OTP_DIGITS = 6;

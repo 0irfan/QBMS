@@ -8,7 +8,6 @@ import { dataScopingMiddleware, hasClassAccess, type ScopedRequest } from '../mi
 
 export const subjectsRouter = Router();
 subjectsRouter.use(authMiddleware);
-subjectsRouter.use(auditMiddleware);
 subjectsRouter.use(dataScopingMiddleware);
 
 // GET /api/subjects - Deprecated, returns 410 Gone

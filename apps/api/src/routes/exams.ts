@@ -8,7 +8,6 @@ import { dataScopingMiddleware, applyScopeToClassQuery, hasClassAccess, type Sco
 
 export const examsRouter = Router();
 examsRouter.use(authMiddleware);
-examsRouter.use(auditMiddleware);
 examsRouter.use(dataScopingMiddleware);
 
 examsRouter.get('/', async (req: ScopedRequest, res) => {

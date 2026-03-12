@@ -8,7 +8,6 @@ import { dataScopingMiddleware, applyScopeToClassQuery, hasClassAccess, type Sco
 
 export const classesRouter = Router();
 classesRouter.use(authMiddleware);
-classesRouter.use(auditMiddleware);
 classesRouter.use(dataScopingMiddleware);
 
 function generateCode() {
