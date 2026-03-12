@@ -261,9 +261,6 @@ export const classesRelations = relations(classes, ({ one, many }) => ({
   enrollments: many(classEnrollments),
   exams: many(exams),
 }));
-  enrollments: many(classEnrollments),
-  exams: many(exams),
-}));
 
 export const classEnrollmentsRelations = relations(classEnrollments, ({ one }) => ({
   class: one(classes),
