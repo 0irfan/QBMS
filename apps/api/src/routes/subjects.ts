@@ -10,12 +10,15 @@ export const subjectsRouter = Router();
 subjectsRouter.use(authMiddleware);
 subjectsRouter.use(dataScopingMiddleware);
 
-// GET /api/subjects - Deprecated, returns 410 Gone
-subjectsRouter.get('/', async (_req, res) => {
-  res.status(410).json({ 
-    error: 'This endpoint is deprecated. Use GET /api/classes/:classId/subjects instead.',
-    message: 'Subjects are now nested under classes. Please update your API calls.'
-  });
+// GET /api/subjects - Get all subjects (backward compatibility)
+subjectsRouter.get('/', async (req: ScopedRequest, res) => {
+  try {
+    const allSubjects = await db.select().from(subjects);
+    res.json(allSubjects);
+  } catch (error) {
+    console.error('Error fetching subjects:', error);
+    res.status(500).json({ error: 'Failed to fetch subjects' });
+  }
 });
 
 // GET /api/subjects/:id - Get single subject (with access check)
